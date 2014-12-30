@@ -18,6 +18,7 @@ import com.android.volley.VolleyError;
 import com.android.volley.toolbox.JsonObjectRequest;
 import com.android.volley.toolbox.Volley;
 
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -32,6 +33,9 @@ public class MainActivity extends ActionBarActivity
     private ProgressBar mStreakPB;
     private Button      mGetStreakBTN;
 
+    private MyMeditation.MeditationProgressListener
+                        mMeditationProgressListener;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -42,10 +46,37 @@ public class MainActivity extends ActionBarActivity
         mStreakTV       = (TextView)    findViewById(R.id.tvStreak);
         mStreakPB       = (ProgressBar) findViewById(R.id.pbGetStreak);
 
+        final ProgressBar pbDuration = (ProgressBar) findViewById(R.id.pbDuration);
+
         mGetStreakBTN.setOnClickListener(this);
         mGetStreakBTN.setOnLongClickListener(this);
 
         mStreakPB.setVisibility(View.INVISIBLE);
+
+        mMeditationProgressListener = new MyMeditation.MeditationProgressListener() {
+            @Override
+            public void numberSectionsSet(int tracks) {
+                pbDuration.setProgress(0);
+                pbDuration.setMax(tracks);
+            }
+
+            @Override
+            public void durationSet(int duration) {
+                pbDuration.setProgress(0);
+                pbDuration.setMax(duration);
+            }
+
+            @Override
+            public void onTrackLoaded(int done, int total) {
+                Log.d("Loading", "Loaded " + done + " of " + total);
+                pbDuration.setProgress(done);
+            }
+
+            @Override
+            public void tick() {
+                pbDuration.incrementProgressBy(1);
+            }
+        };
 
     }
 
@@ -102,6 +133,8 @@ public class MainActivity extends ActionBarActivity
 
                         try {
                             streakString = response.getString("streak");
+                            playSections(response.getJSONArray("sections"));
+
                         } catch (JSONException e) {
                             streakString = "Error";
                         }
@@ -125,6 +158,42 @@ public class MainActivity extends ActionBarActivity
         queue.add(jsObjRequest);
     }
 
+    private  void playSections(JSONArray jsArray) {
+        final MyMeditation session = new MyMeditation();
+
+        for(int i = 0; i < jsArray.length(); i += 2) {
+            try {
+                Log.d("Meditation Prep", i + " URL: " + jsArray.getString(i));
+                Log.d("Meditation Prep", i + "Rest: " + jsArray.getInt(i+1));
+                session.addSection(
+                        new MyMeditation.MySection(jsArray.getString(i), jsArray.getInt(i+1))
+                );
+            } catch (JSONException e) {
+                e.printStackTrace();
+            }
+
+
+        }
+
+        session.setProgressListener(mMeditationProgressListener);
+
+        session.setOnMeditationDoneListener(new MyMeditation.OnMeditationDoneListener() {
+            @Override
+            public void onMeditationDone() {
+                Log.d("Mediation Status", "Mediation Done!");
+            }
+        });
+
+        session.prepare(new MyMeditation.OnMeditationReadyListener() {
+            @Override
+            public void onMeditationReady() {
+                Log.d("Meditation Prep", "Meditation Ready!");
+                session.play();
+            }
+        });
+
+    }
+
     @Override
     public boolean onLongClick(View v) {
         switch (v.getId()) {
@@ -139,6 +208,7 @@ public class MainActivity extends ActionBarActivity
                     player.setDataSource("http://soundboard.panictank.net/" + meme);
                     player.prepare();
                     player.start();
+
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
