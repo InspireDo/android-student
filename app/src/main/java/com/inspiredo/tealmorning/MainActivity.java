@@ -1,5 +1,6 @@
 package com.inspiredo.tealmorning;
 
+import android.media.MediaPlayer;
 import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
 import android.util.Log;
@@ -20,12 +21,17 @@ import com.android.volley.toolbox.Volley;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.IOException;
+import java.util.Random;
 
-public class MainActivity extends ActionBarActivity implements View.OnClickListener {
+
+public class MainActivity extends ActionBarActivity
+        implements View.OnClickListener, View.OnLongClickListener {
 
     private TextView    mStreakTV;
     private ProgressBar mStreakPB;
     private Button      mGetStreakBTN;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -37,6 +43,7 @@ public class MainActivity extends ActionBarActivity implements View.OnClickListe
         mStreakPB       = (ProgressBar) findViewById(R.id.pbGetStreak);
 
         mGetStreakBTN.setOnClickListener(this);
+        mGetStreakBTN.setOnLongClickListener(this);
 
         mStreakPB.setVisibility(View.INVISIBLE);
 
@@ -116,5 +123,33 @@ public class MainActivity extends ActionBarActivity implements View.OnClickListe
                 });
 
         queue.add(jsObjRequest);
+    }
+
+    @Override
+    public boolean onLongClick(View v) {
+        switch (v.getId()) {
+            case R.id.bGetStreak:
+                String[] memes = getResources().getStringArray(R.array.dank_memes);
+                Random r = new Random();
+                Integer rand = r.nextInt(memes.length);
+                String meme = memes[rand];
+
+                MediaPlayer player = new MediaPlayer();
+                try {
+                    player.setDataSource("http://soundboard.panictank.net/" + meme);
+                    player.prepare();
+                    player.start();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+
+
+
+                break;
+
+            default:
+                Log.d("Button LongClick", "No action implemented");
+        }
+        return false;
     }
 }
