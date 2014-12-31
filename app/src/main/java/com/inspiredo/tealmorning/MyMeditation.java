@@ -3,6 +3,7 @@ package com.inspiredo.tealmorning;
 import android.media.AudioManager;
 import android.media.MediaPlayer;
 import android.os.Handler;
+import android.os.SystemClock;
 import android.util.Log;
 
 import java.io.IOException;
@@ -18,6 +19,10 @@ public class MyMeditation {
     // Information about the session
     private int         mDuration = 0;
     private int         mCurrentTime = 0;
+    private boolean     mIsPlaying;
+    private boolean     mIsOnRest;
+    private long        mNextPause;
+
 
     // Information used during loading
     private int         mSectionsLoaded;
@@ -44,14 +49,16 @@ public class MyMeditation {
             mCurrentSection = mCurrentSection.getNext();
 
             if (mCurrentSection == null) {
+                mIsOnRest = mIsPlaying = false;
                 if (mDoneListener != null) mDoneListener.onMeditationDone();
             } else {
+                mIsOnRest = false;
                 play();
             }
         }
     };
 
-    // Gets called when 1 second passes while the session plays
+    // Gets called when .1 second passes while the session plays
     private Runnable mTick = new Runnable() {
         @Override
         public void run() {
@@ -119,6 +126,7 @@ public class MyMeditation {
 
                     // Check if we have loaded all of them
                     if (mSectionsLoaded == mCount) {
+                        mDuration /= 100;
                         Log.d("Meditation Prep", "Duration: " + mDuration);
 
                         // Report to the listener
@@ -126,7 +134,7 @@ public class MyMeditation {
 
                         // Report to the progress listener about how long the session is
                         if (mProgressListener != null)
-                            mProgressListener.durationSet(mDuration / 100);
+                            mProgressListener.durationSet(mDuration);
                     }
                 }
             });
@@ -156,18 +164,58 @@ public class MyMeditation {
             public void onCompletion(MediaPlayer mp) {
                 mp.release(); // Release the resource
 
+                mIsOnRest = true;
+
                 // Play the next one after a delay
-                mHandler.postDelayed(mRestRunnable, mCurrentSection.getRest() * 1000);
+                mNextPause = SystemClock.uptimeMillis() + (mCurrentSection.getRest() * 1000);
+                mHandler.postAtTime(mRestRunnable, mNextPause);
             }
         });
 
         // Start playing the current section
         mCurrentSection.start();
+        mIsPlaying = true;
+        mIsOnRest = false;
 
         // If this is the first section, start the clock
         if (mCurrentTime == 0)
             mHandler.postDelayed(mTick, 100);
 
+    }
+
+    // Play/pause playback.
+    // Returns the new state of the session - false: paused, true: playing
+    public boolean togglePlay() {
+
+        if (mIsPlaying) {
+            // Currently playing - we need to pause
+            if (mIsOnRest) {
+                // We are in rest
+                mNextPause -= SystemClock.uptimeMillis();
+                mHandler.removeCallbacks(mRestRunnable);
+            } else {
+                // There is a clip playing
+                mCurrentSection.pause();
+            }
+            mHandler.removeCallbacks(mTick);
+            mIsPlaying = false;
+        } else {
+            // Currently paused - we need to play
+            if (mIsOnRest) {
+                // We need to resume rest
+                mNextPause += SystemClock.uptimeMillis();
+                mHandler.postAtTime(mRestRunnable, mNextPause);
+
+            } else {
+                // We need to resume playing a clip
+                mCurrentSection.start();
+            }
+            mHandler.postDelayed(mTick,100);
+
+            mIsPlaying = true;
+        }
+
+        return mIsPlaying;
     }
 
     // Stop playback and release the resources

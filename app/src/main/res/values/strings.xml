@@ -7,6 +7,8 @@
     <string name="button_get_streak">Get Streak</string>
     <string name="api_url">https://script.google.com/macros/s/AKfycbyzd0aar042aq0r0YsO6wTaKOwUr0AMSRsr-eOlQh6ZHW5Fl0Q/exec</string>
     <string name="button_stop">Stop</string>
+    <string name="button_play">Play</string>
+    <string name="button_pause">Pause</string>
     <string-array name="dank_memes">
         <item>2SAD4ME.mp3</item>
         <item>AIRHORN.mp3</item>

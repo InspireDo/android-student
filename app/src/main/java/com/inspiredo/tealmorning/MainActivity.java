@@ -31,7 +31,7 @@ public class MainActivity extends ActionBarActivity
 
     private TextView    mStreakTV;
     private ProgressBar mStreakPB, mDurationPB;
-    private Button      mGetStreakBTN, mStopBTN;
+    private Button      mGetStreakBTN, mStopBTN, mPlayBTN;
 
     private MyMeditation.MeditationProgressListener
                         mMeditationProgressListener;
@@ -45,18 +45,26 @@ public class MainActivity extends ActionBarActivity
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        // Load from id
         mGetStreakBTN   = (Button)      findViewById(R.id.bGetStreak);
         mStopBTN        = (Button)      findViewById(R.id.bStop);
+        mPlayBTN        = (Button)      findViewById(R.id.bTogglePlay);
         mStreakTV       = (TextView)    findViewById(R.id.tvStreak);
         mStreakPB       = (ProgressBar) findViewById(R.id.pbGetStreak);
         mDurationPB     = (ProgressBar) findViewById(R.id.pbDuration);
 
+        // Click listener set
         mGetStreakBTN.setOnClickListener(this);
         mStopBTN.setOnClickListener(this);
+        mPlayBTN.setOnClickListener(this);
+
+        // Long click listeners set
         mGetStreakBTN.setOnLongClickListener(this);
 
+        // Visibility set
         mStreakPB.setVisibility(View.INVISIBLE);
         mStopBTN.setVisibility(View.INVISIBLE);
+        mPlayBTN.setVisibility(View.INVISIBLE);
 
         mMeditationProgressListener = new MyMeditation.MeditationProgressListener() {
             @Override
@@ -67,6 +75,7 @@ public class MainActivity extends ActionBarActivity
 
             @Override
             public void durationSet(int duration) {
+                Log.d("MainActivity", "Duration: " + duration);
                 mDurationPB.setProgress(0);
                 mDurationPB.setMax(duration);
             }
@@ -121,9 +130,17 @@ public class MainActivity extends ActionBarActivity
 
             case R.id.bStop:
                 v.setVisibility(View.INVISIBLE);
+                mPlayBTN.setVisibility(View.INVISIBLE);
                 mDurationPB.setProgress(0);
                 mMeditationSession.stop();
                 break;
+
+            case R.id.bTogglePlay:
+                mPlayBTN.setText(
+                        mMeditationSession.togglePlay() ?
+                                getString(R.string.button_pause) : getString(R.string.button_play ));
+                break;
+
             default:
                 Log.d("Button Click", "No action implemented");
         }
@@ -191,6 +208,7 @@ public class MainActivity extends ActionBarActivity
             public void onMeditationDone() {
                 Log.d("Mediation Status", "Mediation Done!");
                 mStopBTN.setVisibility(View.INVISIBLE);
+                mPlayBTN.setVisibility(View.INVISIBLE);
             }
         });
 
@@ -200,6 +218,8 @@ public class MainActivity extends ActionBarActivity
                 Log.d("Meditation Prep", "Meditation Ready!");
                 mMeditationSession.play();
                 mStopBTN.setVisibility(View.VISIBLE);
+                mPlayBTN.setVisibility(View.VISIBLE);
+                mPlayBTN.setText(getString(R.string.button_pause));
             }
         });
 
