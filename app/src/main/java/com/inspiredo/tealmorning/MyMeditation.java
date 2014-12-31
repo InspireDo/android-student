@@ -62,7 +62,7 @@ public class MyMeditation {
 
             if (mCurrentTime < mDuration) {
 
-                mHandler.postDelayed(mTick, 1000);
+                mHandler.postDelayed(mTick, 100);
             }
         }
     };
@@ -110,7 +110,7 @@ public class MyMeditation {
                     Log.d("Meditation Prep", "Section Ready");
 
                     // Update the duration and sections loaded
-                    mDuration += rest + (mp.getDuration() / 1000);
+                    mDuration += (rest * 1000) + mp.getDuration();
                     mSectionsLoaded++;
 
                     // Report to listener
@@ -126,7 +126,7 @@ public class MyMeditation {
 
                         // Report to the progress listener about how long the session is
                         if (mProgressListener != null)
-                            mProgressListener.durationSet(mDuration);
+                            mProgressListener.durationSet(mDuration / 100);
                     }
                 }
             });
@@ -166,8 +166,27 @@ public class MyMeditation {
 
         // If this is the first section, start the clock
         if (mCurrentTime == 0)
-            mHandler.postDelayed(mTick, 1000);
+            mHandler.postDelayed(mTick, 100);
 
+    }
+
+    // Stop playback and release the resources
+    public void stop() {
+
+        if (mCurrentSection != null) {
+            try {
+                mCurrentSection.stop();
+            } catch (IllegalStateException e) {
+                // Okay
+            }
+        }
+
+        mHandler.removeCallbacks(mTick);
+        mHandler.removeCallbacks(mRestRunnable);
+
+        if (mHeadSection != null) {
+            mHeadSection.releaseAll();
+        }
     }
 
     // Listen for when meditation is ready to be played after calling prepare().
@@ -207,17 +226,13 @@ public class MyMeditation {
             } catch (IOException e) {
                 e.printStackTrace();
             }
-            this.setRest(rest);
+            mRest = rest;
 
 
         }
 
         protected void setNext(MySection next) {
             this.mNext = next;
-        }
-
-        protected void setRest(int rest) {
-            this.mRest = rest;
         }
 
         protected int getRest() {
@@ -228,6 +243,10 @@ public class MyMeditation {
             return this.mNext;
         }
 
+        protected void releaseAll() {
+            super.release();
+            if (mNext != null) mNext.release();
+        }
     }
 
 }

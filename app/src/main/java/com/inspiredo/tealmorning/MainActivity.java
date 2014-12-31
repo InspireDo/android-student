@@ -30,11 +30,14 @@ public class MainActivity extends ActionBarActivity
         implements View.OnClickListener, View.OnLongClickListener {
 
     private TextView    mStreakTV;
-    private ProgressBar mStreakPB;
-    private Button      mGetStreakBTN;
+    private ProgressBar mStreakPB, mDurationPB;
+    private Button      mGetStreakBTN, mStopBTN;
 
     private MyMeditation.MeditationProgressListener
                         mMeditationProgressListener;
+
+    private MyMeditation
+                        mMeditationSession;
 
 
     @Override
@@ -43,38 +46,40 @@ public class MainActivity extends ActionBarActivity
         setContentView(R.layout.activity_main);
 
         mGetStreakBTN   = (Button)      findViewById(R.id.bGetStreak);
+        mStopBTN        = (Button)      findViewById(R.id.bStop);
         mStreakTV       = (TextView)    findViewById(R.id.tvStreak);
         mStreakPB       = (ProgressBar) findViewById(R.id.pbGetStreak);
-
-        final ProgressBar pbDuration = (ProgressBar) findViewById(R.id.pbDuration);
+        mDurationPB     = (ProgressBar) findViewById(R.id.pbDuration);
 
         mGetStreakBTN.setOnClickListener(this);
+        mStopBTN.setOnClickListener(this);
         mGetStreakBTN.setOnLongClickListener(this);
 
         mStreakPB.setVisibility(View.INVISIBLE);
+        mStopBTN.setVisibility(View.INVISIBLE);
 
         mMeditationProgressListener = new MyMeditation.MeditationProgressListener() {
             @Override
             public void numberSectionsSet(int tracks) {
-                pbDuration.setProgress(0);
-                pbDuration.setMax(tracks);
+                mDurationPB.setProgress(0);
+                mDurationPB.setMax(tracks);
             }
 
             @Override
             public void durationSet(int duration) {
-                pbDuration.setProgress(0);
-                pbDuration.setMax(duration);
+                mDurationPB.setProgress(0);
+                mDurationPB.setMax(duration);
             }
 
             @Override
             public void onTrackLoaded(int done, int total) {
                 Log.d("Loading", "Loaded " + done + " of " + total);
-                pbDuration.setProgress(done);
+                mDurationPB.setProgress(done);
             }
 
             @Override
             public void tick() {
-                pbDuration.incrementProgressBy(1);
+                mDurationPB.incrementProgressBy(1);
             }
         };
 
@@ -114,6 +119,11 @@ public class MainActivity extends ActionBarActivity
                 getJSON();
                 break;
 
+            case R.id.bStop:
+                v.setVisibility(View.INVISIBLE);
+                mDurationPB.setProgress(0);
+                mMeditationSession.stop();
+                break;
             default:
                 Log.d("Button Click", "No action implemented");
         }
@@ -128,7 +138,6 @@ public class MainActivity extends ActionBarActivity
                 (Request.Method.GET, url, null, new Response.Listener<JSONObject>() {
                     @Override
                     public void onResponse(JSONObject response) {
-                        //Log.d("JSON Response", "Response: " + response.toString());
                         String streakString;
 
                         try {
@@ -159,13 +168,13 @@ public class MainActivity extends ActionBarActivity
     }
 
     private  void playSections(JSONArray jsArray) {
-        final MyMeditation session = new MyMeditation();
+        mMeditationSession = new MyMeditation();
 
         for(int i = 0; i < jsArray.length(); i += 2) {
             try {
                 Log.d("Meditation Prep", i + " URL: " + jsArray.getString(i));
                 Log.d("Meditation Prep", i + "Rest: " + jsArray.getInt(i+1));
-                session.addSection(
+                mMeditationSession.addSection(
                         new MyMeditation.MySection(jsArray.getString(i), jsArray.getInt(i+1))
                 );
             } catch (JSONException e) {
@@ -175,20 +184,22 @@ public class MainActivity extends ActionBarActivity
 
         }
 
-        session.setProgressListener(mMeditationProgressListener);
+        mMeditationSession.setProgressListener(mMeditationProgressListener);
 
-        session.setOnMeditationDoneListener(new MyMeditation.OnMeditationDoneListener() {
+        mMeditationSession.setOnMeditationDoneListener(new MyMeditation.OnMeditationDoneListener() {
             @Override
             public void onMeditationDone() {
                 Log.d("Mediation Status", "Mediation Done!");
+                mStopBTN.setVisibility(View.INVISIBLE);
             }
         });
 
-        session.prepare(new MyMeditation.OnMeditationReadyListener() {
+        mMeditationSession.prepare(new MyMeditation.OnMeditationReadyListener() {
             @Override
             public void onMeditationReady() {
                 Log.d("Meditation Prep", "Meditation Ready!");
-                session.play();
+                mMeditationSession.play();
+                mStopBTN.setVisibility(View.VISIBLE);
             }
         });
 
@@ -203,11 +214,16 @@ public class MainActivity extends ActionBarActivity
                 Integer rand = r.nextInt(memes.length);
                 String meme = memes[rand];
 
-                MediaPlayer player = new MediaPlayer();
+                final MediaPlayer player = new MediaPlayer();
                 try {
                     player.setDataSource("http://soundboard.panictank.net/" + meme);
-                    player.prepare();
-                    player.start();
+                    player.setOnPreparedListener(new MediaPlayer.OnPreparedListener() {
+                        @Override
+                        public void onPrepared(MediaPlayer mp) {
+                            player.start();
+                        }
+                    });
+                    player.prepareAsync();
 
                 } catch (IOException e) {
                     e.printStackTrace();

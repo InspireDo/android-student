@@ -35,4 +35,12 @@
         android:layout_alignParentStart="false"
         android:layout_alignParentEnd="false" />
 
+    <Button
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/button_stop"
+        android:id="@+id/bStop"
+        android:layout_below="@+id/pbGetStreak"
+        android:layout_centerHorizontal="true" />
+
 </RelativeLayout>
