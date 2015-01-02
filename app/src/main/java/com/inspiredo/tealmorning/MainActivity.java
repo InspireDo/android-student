@@ -1,6 +1,11 @@
 package com.inspiredo.tealmorning;
 
+import android.app.AlertDialog;
+import android.content.Context;
+import android.content.DialogInterface;
+import android.content.SharedPreferences;
 import android.media.MediaPlayer;
+import android.preference.PreferenceManager;
 import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
 import android.util.Log;
@@ -8,8 +13,10 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.ProgressBar;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.android.volley.Request;
 import com.android.volley.RequestQueue;
@@ -31,13 +38,15 @@ public class MainActivity extends ActionBarActivity
 
     private TextView    mStreakTV;
     private ProgressBar mStreakPB, mDurationPB;
-    private Button      mGetStreakBTN, mStopBTN, mPlayBTN;
+    private Button      mGetStreakBTN, mStopBTN, mPlayBTN, mUserBTN;
 
     private MyMeditation.MeditationProgressListener
                         mMeditationProgressListener;
 
     private MyMeditation
                         mMeditationSession;
+
+    private String      mUserEmail;
 
 
     @Override
@@ -49,6 +58,7 @@ public class MainActivity extends ActionBarActivity
         mGetStreakBTN   = (Button)      findViewById(R.id.bGetStreak);
         mStopBTN        = (Button)      findViewById(R.id.bStop);
         mPlayBTN        = (Button)      findViewById(R.id.bTogglePlay);
+        mUserBTN        = (Button)      findViewById(R.id.bUser);
         mStreakTV       = (TextView)    findViewById(R.id.tvStreak);
         mStreakPB       = (ProgressBar) findViewById(R.id.pbGetStreak);
         mDurationPB     = (ProgressBar) findViewById(R.id.pbDuration);
@@ -57,6 +67,7 @@ public class MainActivity extends ActionBarActivity
         mGetStreakBTN.setOnClickListener(this);
         mStopBTN.setOnClickListener(this);
         mPlayBTN.setOnClickListener(this);
+        mUserBTN.setOnClickListener(this);
 
         // Long click listeners set
         mGetStreakBTN.setOnLongClickListener(this);
@@ -92,6 +103,8 @@ public class MainActivity extends ActionBarActivity
             }
         };
 
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
+        mUserEmail = prefs.getString("User Email", "kessler.penguin55@gmail.com");
     }
 
 
@@ -141,14 +154,54 @@ public class MainActivity extends ActionBarActivity
                                 getString(R.string.button_pause) : getString(R.string.button_play ));
                 break;
 
+            case R.id.bUser:
+                changeUser();
+                break;
+
             default:
                 Log.d("Button Click", "No action implemented");
         }
     }
 
+    private void changeUser() {
+        Log.d("User", "Change User from " + mUserEmail);
+
+        String currentUser;
+        if (mUserEmail.length() <= 5) {
+            currentUser = mUserEmail;
+        } else {
+            currentUser = mUserEmail.substring(0, 5) + "...";
+        }
+
+        AlertDialog.Builder alert = new AlertDialog.Builder(this);
+
+        alert.setTitle("Change User");
+        alert.setMessage("Current user is " + currentUser +
+                "\nChange users by entering an email below");
+
+        // Set an EditText view to get user input
+        final EditText input = new EditText(this);
+        input.setHint("email");
+        alert.setView(input);
+
+        alert.setPositiveButton("Ok", new DialogInterface.OnClickListener() {
+            public void onClick(DialogInterface dialog, int whichButton) {
+                mUserEmail = input.getText().toString();
+            }
+        });
+
+        alert.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+            public void onClick(DialogInterface dialog, int whichButton) {
+                // Canceled.
+            }
+        });
+
+        alert.show();
+    }
+
     public void getJSON() {
         RequestQueue queue = Volley.newRequestQueue(this);
-        String url = getString(R.string.api_url) + "?email=kessler.penguin55@gmail.com";
+        String url = getString(R.string.api_url) + "?email=" + mUserEmail;
 
 
         JsonObjectRequest jsObjRequest = new JsonObjectRequest
@@ -165,7 +218,7 @@ public class MainActivity extends ActionBarActivity
                             streakString = "Error";
                         }
 
-                        mStreakTV.setText(getString(R.string.streak) + streakString);
+                        mStreakTV.setText(getString(R.string.streak) + " " + streakString);
                         mStreakPB.setVisibility(View.INVISIBLE);
                         mGetStreakBTN.setEnabled(true);
                     }
@@ -201,6 +254,8 @@ public class MainActivity extends ActionBarActivity
 
         }
 
+        final Context self = this;
+
         mMeditationSession.setProgressListener(mMeditationProgressListener);
 
         mMeditationSession.setOnMeditationDoneListener(new MyMeditation.OnMeditationDoneListener() {
@@ -209,6 +264,39 @@ public class MainActivity extends ActionBarActivity
                 Log.d("Mediation Status", "Mediation Done!");
                 mStopBTN.setVisibility(View.INVISIBLE);
                 mPlayBTN.setVisibility(View.INVISIBLE);
+
+                RequestQueue queue = Volley.newRequestQueue(self);
+                String url = getString(R.string.api_url) + "?email=" + mUserEmail;
+
+
+                JsonObjectRequest jsObjRequest = new JsonObjectRequest
+                        (Request.Method.POST, url, null, new Response.Listener<JSONObject>() {
+                            @Override
+                            public void onResponse(JSONObject response) {
+                                Log.d("Response", response.toString());
+
+                                try {
+                                    if (response.getString("status").equals("okay")) {
+                                        Toast.makeText(self, "Session Complete! Nice Work!",
+                                                Toast.LENGTH_LONG).show();
+                                        mStreakTV.setText(self.getString(R.string.streak) +
+                                                " " + response.getString("streak"));
+                                    }
+                                } catch (JSONException e) {
+                                    e.printStackTrace();
+                                }
+                            }
+                        }, new Response.ErrorListener() {
+
+                            @Override
+                            public void onErrorResponse(VolleyError error) {
+                                Log.d("Volley Error", error.toString());
+
+
+                            }
+                        });
+
+                queue.add(jsObjRequest);
             }
         });
 

@@ -51,4 +51,12 @@
         android:layout_below="@+id/bStop"
         android:layout_centerHorizontal="true" />
 
+    <Button
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/button_user"
+        android:id="@+id/bUser"
+        android:layout_below="@+id/bTogglePlay"
+        android:layout_centerHorizontal="true" />
+
 </RelativeLayout>
