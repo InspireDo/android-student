@@ -10,6 +10,10 @@
     <string name="button_play">Play</string>
     <string name="button_pause">Pause</string>
     <string name="button_user">User</string>
+    <string name="label_login">inspireDo</string>
+    <string name="label_login_instruction">Enter you email below</string>
+    <string name="button_login">Login</string>
+
     <string-array name="dank_memes">
         <item>2SAD4ME.mp3</item>
         <item>AIRHORN.mp3</item>
@@ -38,5 +42,8 @@
         <item>NEVER DONE THAT.mp3</item>
         <item>SPOOKY.mp3</item>
     </string-array>
+
+    <string name="title_activity_login">Sign In</string>
+    <string name="hello_world">Hello world!</string>
 
 </resources>
