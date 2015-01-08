@@ -2,61 +2,106 @@
     xmlns:tools="http://schemas.android.com/tools" android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:paddingTop="@dimen/activity_vertical_margin"
-    android:paddingBottom="@dimen/activity_vertical_margin" tools:context=".MainActivity"
+    tools:context=".MainActivity"
     >
 
-    <TextView android:text="@string/streak" android:layout_width="wrap_content"
+    <TextView
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_alignParentTop="true"
+        android:id="@+id/tvStreak"
+        android:layout_above="@+id/lvHistory"
+        android:layout_alignEnd="@+id/lvHistory"
+        android:textSize="24dp" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textAppearance="?android:attr/textAppearanceLarge"
+        android:text="@string/label_up_next"
+        android:id="@+id/textView4"
+        android:layout_alignParentBottom="true"
+        android:layout_alignParentStart="true"
+        android:layout_marginStart="24dp"
+        android:layout_marginBottom="144dp" />
+
+    <FrameLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignTop="@+id/textView4"
         android:layout_centerHorizontal="true"
-        android:id="@+id/tvStreak" />
+        android:layout_marginTop="24dp">
 
-    <Button
+        <ProgressBar
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:id="@+id/pbGetStreak"
+            android:layout_alignTop="@+id/textView4"
+            android:layout_centerHorizontal="true"
+            android:layout_gravity="center" />
+
+        <Button
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/button_stop"
+            android:id="@+id/bStop"
+            android:layout_below="@+id/pbGetStreak"
+            android:layout_centerHorizontal="true"
+            android:layout_gravity="center" />
+    </FrameLayout>
+
+    <RelativeLayout
+        android:layout_width="fill_parent"
+        android:layout_height="64dp"
+        android:layout_alignParentBottom="true"
+        android:layout_centerHorizontal="true"
+        android:id="@+id/relativeLayout">
+
+        <Button
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/button_play"
+            android:id="@+id/bTogglePlay"
+            android:layout_centerVertical="true"
+            android:layout_centerHorizontal="true" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textAppearance="?android:attr/textAppearanceLarge"
+            android:text="4:50"
+            android:id="@+id/tvTimeLeft"
+            android:layout_centerVertical="true"
+            android:layout_alignParentEnd="true"
+            android:layout_marginEnd="28dp" />
+
+        <ProgressBar
+            style="?android:attr/progressBarStyleHorizontal"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:id="@+id/pbDuration"
+            android:layout_alignParentStart="false"
+            android:layout_alignParentEnd="false" />
+
+    </RelativeLayout>
+
+    <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="@string/button_get_streak"
-        android:id="@+id/bGetStreak"
-        android:layout_centerVertical="true"
-        android:layout_centerHorizontal="true" />
+        android:textAppearance="?android:attr/textAppearanceLarge"
+        android:text="@string/label_history"
+        android:id="@+id/textView3"
+        android:layout_marginStart="21dp"
+        android:layout_alignParentTop="true"
+        android:layout_alignParentStart="true"
+        android:layout_marginLeft="24dp" />
 
-    <ProgressBar
+    <ListView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:id="@+id/pbGetStreak"
-        android:layout_below="@+id/bGetStreak"
-        android:layout_centerHorizontal="true" />
-
-    <ProgressBar
-        style="?android:attr/progressBarStyleHorizontal"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:id="@+id/pbDuration"
-        android:layout_below="@+id/tvStreak"
-        android:layout_alignParentStart="false"
-        android:layout_alignParentEnd="false" />
-
-    <Button
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="@string/button_stop"
-        android:id="@+id/bStop"
-        android:layout_below="@+id/pbGetStreak"
-        android:layout_centerHorizontal="true" />
-
-    <Button
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="@string/button_play"
-        android:id="@+id/bTogglePlay"
-        android:layout_below="@+id/bStop"
-        android:layout_centerHorizontal="true" />
-
-    <Button
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="@string/button_user"
-        android:id="@+id/bUser"
-        android:layout_below="@+id/bTogglePlay"
-        android:layout_centerHorizontal="true" />
+        android:id="@+id/lvHistory"
+        android:layout_below="@+id/textView3"
+        android:layout_alignStart="@+id/textView3"
+        android:layout_marginRight="24dp"
+        android:layout_above="@+id/textView4" />
 
 </RelativeLayout>

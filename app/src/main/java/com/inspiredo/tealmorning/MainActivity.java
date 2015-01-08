@@ -1,19 +1,17 @@
 package com.inspiredo.tealmorning;
 
-import android.app.AlertDialog;
 import android.content.Context;
-import android.content.DialogInterface;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.media.MediaPlayer;
+import android.os.Bundle;
 import android.preference.PreferenceManager;
 import android.support.v7.app.ActionBarActivity;
-import android.os.Bundle;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
-import android.widget.EditText;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -38,7 +36,7 @@ public class MainActivity extends ActionBarActivity
 
     private TextView    mStreakTV;
     private ProgressBar mStreakPB, mDurationPB;
-    private Button      mGetStreakBTN, mStopBTN, mPlayBTN, mUserBTN;
+    private Button      mStopBTN, mPlayBTN;
 
     private MyMeditation.MeditationProgressListener
                         mMeditationProgressListener;
@@ -46,7 +44,14 @@ public class MainActivity extends ActionBarActivity
     private MyMeditation
                         mMeditationSession;
 
+    private JSONArray   mCurrentSections;
+
     private String      mUserEmail;
+
+    private int         mPlayState = 0;
+    private int         STATUS_UNPREP = 0;
+    private int         STATUS_PREP = 1;
+    private int         STATUS_PLAYING = 2;
 
 
     @Override
@@ -55,27 +60,22 @@ public class MainActivity extends ActionBarActivity
         setContentView(R.layout.activity_main);
 
         // Load from id
-        mGetStreakBTN   = (Button)      findViewById(R.id.bGetStreak);
         mStopBTN        = (Button)      findViewById(R.id.bStop);
         mPlayBTN        = (Button)      findViewById(R.id.bTogglePlay);
-        mUserBTN        = (Button)      findViewById(R.id.bUser);
         mStreakTV       = (TextView)    findViewById(R.id.tvStreak);
         mStreakPB       = (ProgressBar) findViewById(R.id.pbGetStreak);
         mDurationPB     = (ProgressBar) findViewById(R.id.pbDuration);
 
         // Click listener set
-        mGetStreakBTN.setOnClickListener(this);
         mStopBTN.setOnClickListener(this);
         mPlayBTN.setOnClickListener(this);
-        mUserBTN.setOnClickListener(this);
-
-        // Long click listeners set
-        mGetStreakBTN.setOnLongClickListener(this);
 
         // Visibility set
         mStreakPB.setVisibility(View.INVISIBLE);
         mStopBTN.setVisibility(View.INVISIBLE);
         mPlayBTN.setVisibility(View.INVISIBLE);
+
+        mStopBTN.setText("Start");
 
         mMeditationProgressListener = new MyMeditation.MeditationProgressListener() {
             @Override
@@ -105,6 +105,8 @@ public class MainActivity extends ActionBarActivity
 
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
         mUserEmail = prefs.getString("User Email", "kessler.penguin55@gmail.com");
+
+        getJSON();
     }
 
 
@@ -117,14 +119,15 @@ public class MainActivity extends ActionBarActivity
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
-        // Handle action bar item clicks here. The action bar will
-        // automatically handle clicks on the Home/Up button, so long
-        // as you specify a parent activity in AndroidManifest.xml.
-        int id = item.getItemId();
-
-        //noinspection SimplifiableIfStatement
-        if (id == R.id.action_settings) {
-            return true;
+        switch (item.getItemId()) {
+            case R.id.action_refresh:
+                getJSON();
+                return true;
+            case R.id.action_logout:
+                logout();
+                return true;
+            default:
+                Log.d("Menu Item Click", "Action not implemented");
         }
 
         return super.onOptionsItemSelected(item);
@@ -135,17 +138,21 @@ public class MainActivity extends ActionBarActivity
     @Override
     public void onClick(View v) {
         switch (v.getId()) {
-            case R.id.bGetStreak:
-                mStreakPB.setVisibility(View.VISIBLE);
-                mGetStreakBTN.setEnabled(false);
-                getJSON();
-                break;
 
             case R.id.bStop:
-                v.setVisibility(View.INVISIBLE);
-                mPlayBTN.setVisibility(View.INVISIBLE);
-                mDurationPB.setProgress(0);
-                mMeditationSession.stop();
+                if(mPlayState == STATUS_UNPREP) {
+                    mStreakPB.setVisibility(View.VISIBLE);
+                    v.setVisibility(View.INVISIBLE);
+                    prepSections(mCurrentSections);
+                } else if (mPlayState == STATUS_PREP) {
+                    playSections();
+                } else if (mPlayState == STATUS_PLAYING) {
+                    mPlayBTN.setVisibility(View.INVISIBLE);
+                    mDurationPB.setProgress(0);
+                    mMeditationSession.stop();
+                    mPlayState = STATUS_UNPREP;
+                    mStopBTN.setText("Load Session");
+                }
                 break;
 
             case R.id.bTogglePlay:
@@ -154,54 +161,30 @@ public class MainActivity extends ActionBarActivity
                                 getString(R.string.button_pause) : getString(R.string.button_play ));
                 break;
 
-            case R.id.bUser:
-                changeUser();
-                break;
+
 
             default:
                 Log.d("Button Click", "No action implemented");
         }
     }
 
-    private void changeUser() {
-        Log.d("User", "Change User from " + mUserEmail);
+    private void logout() {
+        SharedPreferences.Editor editor = PreferenceManager.getDefaultSharedPreferences(this)
+                .edit();
+        editor.putString("User Email", "");
+        editor.apply();
+        Intent i = new Intent(this, LoginActivity.class);
+        startActivity(i);
+        finish();
 
-        String currentUser;
-        if (mUserEmail.length() <= 5) {
-            currentUser = mUserEmail;
-        } else {
-            currentUser = mUserEmail.substring(0, 5) + "...";
-        }
-
-        AlertDialog.Builder alert = new AlertDialog.Builder(this);
-
-        alert.setTitle("Change User");
-        alert.setMessage("Current user is " + currentUser +
-                "\nChange users by entering an email below");
-
-        // Set an EditText view to get user input
-        final EditText input = new EditText(this);
-        input.setHint("email");
-        alert.setView(input);
-
-        alert.setPositiveButton("Ok", new DialogInterface.OnClickListener() {
-            public void onClick(DialogInterface dialog, int whichButton) {
-                mUserEmail = input.getText().toString();
-            }
-        });
-
-        alert.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
-            public void onClick(DialogInterface dialog, int whichButton) {
-                // Canceled.
-            }
-        });
-
-        alert.show();
     }
 
     public void getJSON() {
+        mStreakPB.setVisibility(View.VISIBLE);
+        mStopBTN.setVisibility(View.INVISIBLE);
+
         RequestQueue queue = Volley.newRequestQueue(this);
-        String url = getString(R.string.api_url) + "?email=" + mUserEmail;
+        String url = getString(R.string.api_url) + "?prev=1&email=" + mUserEmail;
 
 
         JsonObjectRequest jsObjRequest = new JsonObjectRequest
@@ -212,15 +195,15 @@ public class MainActivity extends ActionBarActivity
 
                         try {
                             streakString = response.getString("streak");
-                            playSections(response.getJSONArray("sections"));
+                            mCurrentSections = response.getJSONArray("sections");
+                            prepSections(mCurrentSections);
+
 
                         } catch (JSONException e) {
                             streakString = "Error";
                         }
 
-                        mStreakTV.setText(getString(R.string.streak) + " " + streakString);
-                        mStreakPB.setVisibility(View.INVISIBLE);
-                        mGetStreakBTN.setEnabled(true);
+                        mStreakTV.setText(streakString);
                     }
                 }, new Response.ErrorListener() {
 
@@ -228,7 +211,6 @@ public class MainActivity extends ActionBarActivity
                     public void onErrorResponse(VolleyError error) {
                         mStreakTV.setText("Error");
                         mStreakPB.setVisibility(View.INVISIBLE);
-                        mGetStreakBTN.setEnabled(true);
 
 
                     }
@@ -237,7 +219,7 @@ public class MainActivity extends ActionBarActivity
         queue.add(jsObjRequest);
     }
 
-    private  void playSections(JSONArray jsArray) {
+    private  void prepSections(JSONArray jsArray) {
         mMeditationSession = new MyMeditation();
 
         for(int i = 0; i < jsArray.length(); i += 2) {
@@ -264,6 +246,8 @@ public class MainActivity extends ActionBarActivity
                 Log.d("Mediation Status", "Mediation Done!");
                 mStopBTN.setVisibility(View.INVISIBLE);
                 mPlayBTN.setVisibility(View.INVISIBLE);
+                mPlayState = STATUS_UNPREP;
+                mStreakPB.setVisibility(View.VISIBLE);
 
                 RequestQueue queue = Volley.newRequestQueue(self);
                 String url = getString(R.string.api_url) + "?email=" + mUserEmail;
@@ -279,8 +263,9 @@ public class MainActivity extends ActionBarActivity
                                     if (response.getString("status").equals("okay")) {
                                         Toast.makeText(self, "Session Complete! Nice Work!",
                                                 Toast.LENGTH_LONG).show();
-                                        mStreakTV.setText(self.getString(R.string.streak) +
-                                                " " + response.getString("streak"));
+                                        mStreakTV.setText(response.getString("streak"));
+                                        mCurrentSections = response.getJSONArray("next");
+                                        prepSections(mCurrentSections);
                                     }
                                 } catch (JSONException e) {
                                     e.printStackTrace();
@@ -304,19 +289,28 @@ public class MainActivity extends ActionBarActivity
             @Override
             public void onMeditationReady() {
                 Log.d("Meditation Prep", "Meditation Ready!");
-                mMeditationSession.play();
+                mStreakPB.setVisibility(View.INVISIBLE);
                 mStopBTN.setVisibility(View.VISIBLE);
-                mPlayBTN.setVisibility(View.VISIBLE);
-                mPlayBTN.setText(getString(R.string.button_pause));
+                mStopBTN.setText("Start Session");
+                mPlayState = STATUS_PREP;
+
             }
         });
 
     }
 
+    protected void playSections() {
+        mPlayState = STATUS_PLAYING;
+        mMeditationSession.play();
+        mStopBTN.setText("Stop Session");
+        mPlayBTN.setVisibility(View.VISIBLE);
+        mPlayBTN.setText(getString(R.string.button_pause));
+    }
+
     @Override
     public boolean onLongClick(View v) {
         switch (v.getId()) {
-            case R.id.bGetStreak:
+            case R.id.bStop:
                 String[] memes = getResources().getStringArray(R.array.dank_memes);
                 Random r = new Random();
                 Integer rand = r.nextInt(memes.length);
