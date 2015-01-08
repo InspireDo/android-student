@@ -11,7 +11,9 @@ import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.ListView;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -28,7 +30,12 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.IOException;
+import java.text.DateFormat;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.Random;
+import java.util.TimeZone;
 
 
 public class MainActivity extends ActionBarActivity
@@ -37,6 +44,7 @@ public class MainActivity extends ActionBarActivity
     private TextView    mStreakTV;
     private ProgressBar mStreakPB, mDurationPB;
     private Button      mStopBTN, mPlayBTN;
+    private ListView    mHistoryList;
 
     private MyMeditation.MeditationProgressListener
                         mMeditationProgressListener;
@@ -65,6 +73,7 @@ public class MainActivity extends ActionBarActivity
         mStreakTV       = (TextView)    findViewById(R.id.tvStreak);
         mStreakPB       = (ProgressBar) findViewById(R.id.pbGetStreak);
         mDurationPB     = (ProgressBar) findViewById(R.id.pbDuration);
+        mHistoryList    = (ListView)    findViewById(R.id.lvHistory);
 
         // Click listener set
         mStopBTN.setOnClickListener(this);
@@ -186,6 +195,7 @@ public class MainActivity extends ActionBarActivity
         RequestQueue queue = Volley.newRequestQueue(this);
         String url = getString(R.string.api_url) + "?prev=1&email=" + mUserEmail;
 
+        final Context self = this;
 
         JsonObjectRequest jsObjRequest = new JsonObjectRequest
                 (Request.Method.GET, url, null, new Response.Listener<JSONObject>() {
@@ -198,8 +208,37 @@ public class MainActivity extends ActionBarActivity
                             mCurrentSections = response.getJSONArray("sections");
                             prepSections(mCurrentSections);
 
+                            // Get the tasks array
+                            JSONArray array = response.getJSONArray("prev");
+
+                            ArrayAdapter<MeditationSessionModel> adapter = new SessionAdapter(self, R.layout.session_row);
+
+
+                            // Date format for parsing
+                            DateFormat df = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
+                            df.setTimeZone(TimeZone.getTimeZone("UTC"));
+
+                            // Loop and add each task to the adapter
+                            for (int i = 0; i < array.length(); i++) {
+                                JSONObject session = array.getJSONObject(i);
+
+                                // Get the Task properties
+                                Date date = df.parse(session.getString("date_complete"));
+                                int index = session.getInt("index");
+
+                                // Add new TaskModel to the adapter
+                                adapter.add(new MeditationSessionModel(date, index));
+
+                                mHistoryList.setAdapter(adapter);
+                                mHistoryList.setSelection(adapter.getCount() -1);
+
+                            }
+
+
 
                         } catch (JSONException e) {
+                            streakString = "Error";
+                        } catch (ParseException e) {
                             streakString = "Error";
                         }
 
