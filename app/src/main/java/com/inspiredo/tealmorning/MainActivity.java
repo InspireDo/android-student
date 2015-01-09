@@ -15,6 +15,7 @@ import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.ListView;
 import android.widget.ProgressBar;
+import android.widget.RelativeLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -45,6 +46,8 @@ public class MainActivity extends ActionBarActivity
     private ProgressBar mStreakPB, mDurationPB;
     private Button      mStopBTN, mPlayBTN;
     private ListView    mHistoryList;
+    private RelativeLayout
+                        mControlLayout;
 
     private MyMeditation.MeditationProgressListener
                         mMeditationProgressListener;
@@ -55,6 +58,9 @@ public class MainActivity extends ActionBarActivity
     private JSONArray   mCurrentSections;
 
     private String      mUserEmail;
+
+    private ArrayAdapter<MeditationSessionModel>
+                        mAdapter;
 
     private int         mPlayState = 0;
     private int         STATUS_UNPREP = 0;
@@ -76,6 +82,8 @@ public class MainActivity extends ActionBarActivity
         mStreakPB       = (ProgressBar) findViewById(R.id.pbGetStreak);
         mDurationPB     = (ProgressBar) findViewById(R.id.pbDuration);
         mHistoryList    = (ListView)    findViewById(R.id.lvHistory);
+        mControlLayout  = (RelativeLayout)
+                                        findViewById(R.id.rlControls);
 
         // Click listener set
         mStopBTN.setOnClickListener(this);
@@ -84,7 +92,7 @@ public class MainActivity extends ActionBarActivity
         // Visibility set
         mStreakPB.setVisibility(View.INVISIBLE);
         mStopBTN.setVisibility(View.INVISIBLE);
-        mPlayBTN.setVisibility(View.INVISIBLE);
+        mControlLayout.setVisibility(View.INVISIBLE);
 
         mStopBTN.setText("Start");
 
@@ -162,8 +170,9 @@ public class MainActivity extends ActionBarActivity
                     prepSections(mCurrentSections);
                 } else if (mPlayState == STATUS_PREP) {
                     playSections();
+                    mControlLayout.setVisibility(View.VISIBLE);
                 } else if (mPlayState == STATUS_PLAYING) {
-                    mPlayBTN.setVisibility(View.INVISIBLE);
+                    mControlLayout.setVisibility(View.INVISIBLE);
                     mDurationPB.setProgress(0);
                     mMeditationSession.stop();
                     mPlayState = STATUS_UNPREP;
@@ -218,7 +227,7 @@ public class MainActivity extends ActionBarActivity
                             // Get the tasks array
                             JSONArray array = response.getJSONArray("prev");
 
-                            ArrayAdapter<MeditationSessionModel> adapter = new SessionAdapter(self, R.layout.session_row);
+                            mAdapter = new SessionAdapter(self, R.layout.session_row);
 
 
                             // Date format for parsing
@@ -234,10 +243,10 @@ public class MainActivity extends ActionBarActivity
                                 int index = session.getInt("index");
 
                                 // Add new TaskModel to the adapter
-                                adapter.add(new MeditationSessionModel(date, index));
+                                mAdapter.add(new MeditationSessionModel(date, index));
 
-                                mHistoryList.setAdapter(adapter);
-                                mHistoryList.setSelection(adapter.getCount() -1);
+                                mHistoryList.setAdapter(mAdapter);
+                                mHistoryList.setSelection(mAdapter.getCount() -1);
 
                             }
 
@@ -265,7 +274,12 @@ public class MainActivity extends ActionBarActivity
         queue.add(jsObjRequest);
     }
 
-    private  void prepSections(JSONArray jsArray) {
+    private void prepSections(JSONArray jsArray) {
+        if(jsArray.length() == 0 ) {
+            Toast.makeText(this, "No next meditation found...", Toast.LENGTH_LONG).show();
+            mStreakPB.setVisibility(View.INVISIBLE);
+            return;
+        }
         mMeditationSession = new MyMeditation();
 
         for(int i = 0; i < jsArray.length(); i += 2) {
@@ -291,9 +305,14 @@ public class MainActivity extends ActionBarActivity
             public void onMeditationDone() {
                 Log.d("Mediation Status", "Mediation Done!");
                 mStopBTN.setVisibility(View.INVISIBLE);
-                mPlayBTN.setVisibility(View.INVISIBLE);
+                mControlLayout.setVisibility(View.INVISIBLE);
                 mPlayState = STATUS_UNPREP;
                 mStreakPB.setVisibility(View.VISIBLE);
+
+                int index = mAdapter.getItem(mAdapter.getCount() - 1).getIndex() + 1;
+                mAdapter.add(new MeditationSessionModel(new Date(), index));
+                mAdapter.notifyDataSetChanged();
+                mHistoryList.setSelection(mAdapter.getCount() -1);
 
                 RequestQueue queue = Volley.newRequestQueue(self);
                 String url = getString(R.string.api_url) + "?email=" + mUserEmail;
@@ -349,7 +368,7 @@ public class MainActivity extends ActionBarActivity
         mPlayState = STATUS_PLAYING;
         mMeditationSession.play();
         mStopBTN.setText("Stop Session");
-        mPlayBTN.setVisibility(View.VISIBLE);
+        mControlLayout.setVisibility(View.VISIBLE);
         mPlayBTN.setText(getString(R.string.button_pause));
     }
 
