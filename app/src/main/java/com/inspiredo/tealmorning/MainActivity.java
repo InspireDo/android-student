@@ -41,7 +41,7 @@ import java.util.TimeZone;
 public class MainActivity extends ActionBarActivity
         implements View.OnClickListener, View.OnLongClickListener {
 
-    private TextView    mStreakTV;
+    private TextView    mStreakTV, mTimerTV;
     private ProgressBar mStreakPB, mDurationPB;
     private Button      mStopBTN, mPlayBTN;
     private ListView    mHistoryList;
@@ -61,6 +61,7 @@ public class MainActivity extends ActionBarActivity
     private int         STATUS_PREP = 1;
     private int         STATUS_PLAYING = 2;
 
+    private int         mDuration;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -71,6 +72,7 @@ public class MainActivity extends ActionBarActivity
         mStopBTN        = (Button)      findViewById(R.id.bStop);
         mPlayBTN        = (Button)      findViewById(R.id.bTogglePlay);
         mStreakTV       = (TextView)    findViewById(R.id.tvStreak);
+        mTimerTV        = (TextView)    findViewById(R.id.tvTimeLeft);
         mStreakPB       = (ProgressBar) findViewById(R.id.pbGetStreak);
         mDurationPB     = (ProgressBar) findViewById(R.id.pbDuration);
         mHistoryList    = (ListView)    findViewById(R.id.lvHistory);
@@ -98,6 +100,9 @@ public class MainActivity extends ActionBarActivity
                 Log.d("MainActivity", "Duration: " + duration);
                 mDurationPB.setProgress(0);
                 mDurationPB.setMax(duration);
+                mDuration = duration;
+                mTimerTV.setText(String.format("%d:%02d", duration/600, (duration/10)%60));
+
             }
 
             @Override
@@ -108,7 +113,9 @@ public class MainActivity extends ActionBarActivity
 
             @Override
             public void tick() {
+
                 mDurationPB.incrementProgressBy(1);
+                mTimerTV.setText(String.format("%d:%02d", --mDuration/600, (mDuration/10)%60));
             }
         };
 
