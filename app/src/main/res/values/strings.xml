@@ -46,6 +46,6 @@
     <string name="title_activity_login">Sign In</string>
     <string name="hello_world">Hello world!</string>
     <string name="label_history">History</string>
-    <string name="label_up_next">Up Next</string>
+    <string name="label_up_next">Next Session</string>
 
 </resources>

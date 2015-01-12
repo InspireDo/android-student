@@ -1,5 +1,6 @@
 package com.inspiredo.tealmorning;
 
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -11,6 +12,7 @@ import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.ListView;
@@ -40,9 +42,9 @@ import java.util.TimeZone;
 
 
 public class MainActivity extends ActionBarActivity
-        implements View.OnClickListener, View.OnLongClickListener {
+        implements View.OnClickListener, View.OnLongClickListener, AdapterView.OnItemClickListener {
 
-    private TextView    mStreakTV, mTimerTV;
+    private TextView    mStreakTV, mTimerTV, mSessionDateTV;
     private ProgressBar mStreakPB, mDurationPB;
     private Button      mStopBTN, mPlayBTN;
     private ListView    mHistoryList;
@@ -69,6 +71,13 @@ public class MainActivity extends ActionBarActivity
 
     private int         mDuration;
 
+    private MeditationSessionModel
+                        mCurrentRow = new MeditationSessionModel(null, -1);
+
+    private boolean     mIsPrev;
+    private MeditationSessionModel
+                        mPrevSession;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -79,6 +88,7 @@ public class MainActivity extends ActionBarActivity
         mPlayBTN        = (Button)      findViewById(R.id.bTogglePlay);
         mStreakTV       = (TextView)    findViewById(R.id.tvStreak);
         mTimerTV        = (TextView)    findViewById(R.id.tvTimeLeft);
+        mSessionDateTV  = (TextView)    findViewById(R.id.tvSessionDate);
         mStreakPB       = (ProgressBar) findViewById(R.id.pbGetStreak);
         mDurationPB     = (ProgressBar) findViewById(R.id.pbDuration);
         mHistoryList    = (ListView)    findViewById(R.id.lvHistory);
@@ -88,6 +98,7 @@ public class MainActivity extends ActionBarActivity
         // Click listener set
         mStopBTN.setOnClickListener(this);
         mPlayBTN.setOnClickListener(this);
+        mHistoryList.setOnItemClickListener(this);
 
         // Visibility set
         mStreakPB.setVisibility(View.INVISIBLE);
@@ -245,10 +256,11 @@ public class MainActivity extends ActionBarActivity
                                 // Add new TaskModel to the adapter
                                 mAdapter.add(new MeditationSessionModel(date, index));
 
-                                mHistoryList.setAdapter(mAdapter);
-                                mHistoryList.setSelection(mAdapter.getCount() -1);
-
                             }
+
+                            mAdapter.add(mCurrentRow);
+                            mHistoryList.setAdapter(mAdapter);
+                            mHistoryList.setSelection(mAdapter.getCount() -1);
 
 
 
@@ -274,9 +286,15 @@ public class MainActivity extends ActionBarActivity
         queue.add(jsObjRequest);
     }
 
+    @Override
+    protected void onDestroy() {
+        if (mMeditationSession != null) mMeditationSession.stop();
+        super.onDestroy();
+    }
+
     private void prepSections(JSONArray jsArray) {
         if(jsArray.length() == 0 ) {
-            Toast.makeText(this, "No next meditation found...", Toast.LENGTH_LONG).show();
+            mSessionDateTV.setText("No Next Session Found");
             mStreakPB.setVisibility(View.INVISIBLE);
             return;
         }
@@ -307,10 +325,18 @@ public class MainActivity extends ActionBarActivity
                 mStopBTN.setVisibility(View.INVISIBLE);
                 mControlLayout.setVisibility(View.INVISIBLE);
                 mPlayState = STATUS_UNPREP;
+
+                if(mIsPrev) {
+                    mSessionDateTV.setText("Select Session");
+                    Toast.makeText(self, "Session Complete! Nice Work!",
+                            Toast.LENGTH_LONG).show();
+                    return;
+                }
+
                 mStreakPB.setVisibility(View.VISIBLE);
 
-                int index = mAdapter.getItem(mAdapter.getCount() - 1).getIndex() + 1;
-                mAdapter.add(new MeditationSessionModel(new Date(), index));
+                int index = mAdapter.getItem(mAdapter.getCount() - 2).getIndex() + 1;
+                mAdapter.insert(new MeditationSessionModel(new Date(), index), mAdapter.getCount() -1);
                 mAdapter.notifyDataSetChanged();
                 mHistoryList.setSelection(mAdapter.getCount() -1);
 
@@ -404,5 +430,53 @@ public class MainActivity extends ActionBarActivity
                 Log.d("Button LongClick", "No action implemented");
         }
         return false;
+    }
+
+    @Override
+    public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+        MeditationSessionModel session = mAdapter.getItem(position);
+
+        if (session.getIndex() == -1) {
+            mIsPrev = false;
+            mSessionDateTV.setText("Next Session");
+            prepSections(mCurrentSections);
+        } else {
+            mIsPrev = true;
+            SimpleDateFormat format = new SimpleDateFormat("MM/dd");
+            mSessionDateTV.setText(format.format(session.getDate()));
+
+            mStreakPB.setVisibility(View.VISIBLE);
+            mStopBTN.setVisibility(View.INVISIBLE);
+
+            RequestQueue queue = Volley.newRequestQueue(this);
+            String url = getString(R.string.api_url) + "?index=" + session.getIndex() + "&email=" + mUserEmail;
+
+
+            JsonObjectRequest jsObjRequest = new JsonObjectRequest
+                    (Request.Method.GET, url, null, new Response.Listener<JSONObject>() {
+                        @Override
+                        public void onResponse(JSONObject response) {
+
+                            try {
+                                prepSections(response.getJSONArray("sections"));
+
+                            } catch (JSONException e) {
+
+                            }
+
+                        }
+                    }, new Response.ErrorListener() {
+
+                        @Override
+                        public void onErrorResponse(VolleyError error) {
+                            mStreakTV.setText("Error");
+                            mStreakPB.setVisibility(View.INVISIBLE);
+
+
+                        }
+                    });
+
+            queue.add(jsObjRequest);
+        }
     }
 }

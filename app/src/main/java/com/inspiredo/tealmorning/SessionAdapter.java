@@ -28,10 +28,15 @@ public class SessionAdapter extends ArrayAdapter<MeditationSessionModel> {
 
         // Get the Task
         MeditationSessionModel session = getItem(position);
-
-        SimpleDateFormat format = new SimpleDateFormat("MM/dd");
         TextView date = (TextView) convertView.findViewById(R.id.tvDate);
-        date.setText(format.format(session.getDate()));
+
+        if (session.getIndex() == -1) {
+            date.setText("Next Session");
+        } else {
+            SimpleDateFormat format = new SimpleDateFormat("MM/dd");
+            date.setText(format.format(session.getDate()));
+        }
+
 
         return convertView;
     }
