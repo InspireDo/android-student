@@ -2,14 +2,11 @@
 <resources>
 
     <string name="app_name">Teal Morning</string>
-    <string name="streak">Streak: </string>
     <string name="action_settings">Settings</string>
-    <string name="button_get_streak">Get Streak</string>
     <string name="api_url">https://script.google.com/macros/s/AKfycbyzd0aar042aq0r0YsO6wTaKOwUr0AMSRsr-eOlQh6ZHW5Fl0Q/exec</string>
     <string name="button_stop">Stop</string>
     <string name="button_play">Play</string>
     <string name="button_pause">Pause</string>
-    <string name="button_user">User</string>
     <string name="label_login">inspireDo</string>
     <string name="label_login_instruction">Enter you email below</string>
     <string name="button_login">Login</string>
@@ -47,5 +44,6 @@
     <string name="hello_world">Hello world!</string>
     <string name="label_history">History</string>
     <string name="label_up_next">Next Session</string>
+    <string name="button_start">Start</string>
 
 </resources>

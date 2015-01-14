@@ -11,13 +11,19 @@ import java.text.SimpleDateFormat;
 
 /**
  * Adapter for History of sessions
+ *
+ * Created by Erik Kessler
+ * (c) 2015 inspireDo
  */
-public class SessionAdapter extends ArrayAdapter<MeditationSessionModel> {
+class SessionAdapter extends ArrayAdapter<MeditationSessionModel> {
 
     public SessionAdapter(Context context, int resource) {
         super(context, resource);
     }
 
+    /**
+     * Override this method so we can set the date or if needed "Next Session"
+     */
     @Override
     public View getView(int position, View convertView, ViewGroup parent) {
         // Inflate the view if needed

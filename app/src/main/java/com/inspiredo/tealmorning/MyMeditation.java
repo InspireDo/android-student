@@ -12,11 +12,12 @@ import java.io.IOException;
  * MyMeditation class allows for the playback of multiple audio files streamed urls with a
  * gap of silence between clips.
  *
- * (c) 2014. Erik Kessler
+ * Created by Erik Kessler
+ * (c) 2015 inspireDo
  */
 public class MyMeditation {
 
-    // Information about the session
+    /* Information about the session */
     private int         mDuration = 0;
     private int         mCurrentTime = 0;
     private boolean     mIsPlaying;
@@ -40,10 +41,10 @@ public class MyMeditation {
                         mProgressListener;
 
     // Handler
-    private Handler     mHandler;
+    private final Handler     mHandler;
 
     // Gets called when rest period is over
-    private Runnable mRestRunnable = new Runnable() {
+    private final Runnable mRestRunnable = new Runnable() {
         @Override
         public void run() {
             mCurrentSection = mCurrentSection.getNext();
@@ -59,7 +60,7 @@ public class MyMeditation {
     };
 
     // Gets called when .1 second passes while the session plays
-    private Runnable mTick = new Runnable() {
+    private final Runnable mTick = new Runnable() {
         @Override
         public void run() {
             mCurrentTime++;
@@ -86,11 +87,9 @@ public class MyMeditation {
         // Check if this is the first added section
         if(mHeadSection == null) {
             // Setting the head
-            Log.d("Meditation Prep", "Head Section set");
             mHeadSection = mTailSection = mCurrentSection = newSection;
         } else {
             // Adding to the tail
-            Log.d("Meditation Prep", "Added Section");
             mTailSection.setNext(newSection);
             mTailSection = newSection;
         }
@@ -101,10 +100,6 @@ public class MyMeditation {
     // Once all sections have been added, call this to fetch the clips and prepare for playback
     public void prepare(final OnMeditationReadyListener listener) {
 
-        // Tell progress listener about number of sections we have
-        if (mProgressListener != null)
-            mProgressListener.numberSectionsSet(mCount);
-
         // Iterate through the sections preparing each for playback
         mCurrentSection = mHeadSection;
         while (mCurrentSection != null) {
@@ -114,15 +109,11 @@ public class MyMeditation {
             mCurrentSection.setOnPreparedListener(new MediaPlayer.OnPreparedListener() {
                 @Override
                 public void onPrepared(MediaPlayer mp) {
-                    Log.d("Meditation Prep", "Section Ready");
 
                     // Update the duration and sections loaded
                     mDuration += (rest * 1000) + mp.getDuration();
                     mSectionsLoaded++;
 
-                    // Report to listener
-                    if (mProgressListener != null)
-                        mProgressListener.onTrackLoaded(mSectionsLoaded, mCount);
 
                     // Check if we have loaded all of them
                     if (mSectionsLoaded == mCount) {
@@ -249,9 +240,7 @@ public class MyMeditation {
 
     // Listen for updates about the session progress (ticks) and the number of sections loaded
     public interface  MeditationProgressListener {
-        public void numberSectionsSet(int tracks);
         public void durationSet(int duration);
-        public void onTrackLoaded(int done, int total);
         public void tick();
     }
 
@@ -262,36 +251,32 @@ public class MyMeditation {
     public static class MySection extends MediaPlayer {
 
         // Number of seconds to rest after this clip
-        private int         mRest;
+        private final int   mRest;
 
         // Next section to be played. Null is this is the last
         private MySection   mNext;
 
-        public MySection(String url, int rest)  {
+        public MySection(String url, int rest) throws IOException {
             this.setAudioStreamType(AudioManager.STREAM_MUSIC);
-            try {
-                this.setDataSource(url);
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+            this.setDataSource(url);
             mRest = rest;
 
 
         }
 
-        protected void setNext(MySection next) {
+        void setNext(MySection next) {
             this.mNext = next;
         }
 
-        protected int getRest() {
+        int getRest() {
             return this.mRest;
         }
 
-        protected MySection getNext() {
+        MySection getNext() {
             return this.mNext;
         }
 
-        protected void releaseAll() {
+        void releaseAll() {
             super.release();
             if (mNext != null) mNext.release();
         }

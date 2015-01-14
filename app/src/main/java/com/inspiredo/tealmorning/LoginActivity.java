@@ -1,6 +1,5 @@
 package com.inspiredo.tealmorning;
 
-import android.app.Activity;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
@@ -25,68 +24,100 @@ import com.android.volley.toolbox.Volley;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-
+/**
+ * This is the class that activity that starts up first.
+ * We check to see if the user has logged in before. If she has then we continue directly
+ * to the MainActivity.
+ *
+ * The only authentication is the email. If the email is a signed up user we store the email
+ * in shared preferences.
+ *
+ * Created by Erik Kessler
+ * (c) 2015 inspireDo.
+ */
 public class LoginActivity extends ActionBarActivity implements View.OnClickListener {
 
-    EditText mEmailField;
-    Button mLoginButton;
-    ProgressBar mLoginProgress;
-    TextView mLoginError;
+    /**
+     * UI elements
+     */
+    private EditText mEmailField;   // Text field for inputted email
+    private Button mLoginButton;    // Button to login
+    private ProgressBar mLoginProgress; // Loading spinner to indicate working
+    private TextView mLoginError;   // Shows error text
+
+    /**
+     * Constants
+     */
+    public static final String PREF_KEY = "User Email";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
+        // Get the stored email if there is one
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
-        String userEmail = prefs.getString("User Email", "");
+        String userEmail = prefs.getString(PREF_KEY, "");
 
+        // Check if there is a logged in user
         if (userEmail.length() == 0) {
+            // No user - need to login
+            // Setup the login UI
             setContentView(R.layout.activity_login);
 
+            // Get the UI elements from their ID's
             mEmailField = (EditText) findViewById(R.id.etLoginEmail);
             mLoginButton = (Button) findViewById(R.id.bLogin);
             mLoginProgress = (ProgressBar) findViewById(R.id.pbLogin);
             mLoginError = (TextView) findViewById(R.id.tvLoginError);
 
+            // Set visibility
             mLoginProgress.setVisibility(View.INVISIBLE);
             mLoginError.setVisibility(View.INVISIBLE);
 
-
+            // Set click listeners
             mLoginButton.setOnClickListener(this);
 
 
         } else {
+            // Existing user
+            // Go to MainActivity
             Intent i = new Intent(this, MainActivity.class);
             startActivity(i);
             finish();
         }
     }
 
+    /**
+     * Gets the email entered into the text field.
+     * Makes asks the server if this is a valid email.
+     */
     private void login() {
         final String email = mEmailField.getText().toString();
 
+        // Check if user entered an email
         if (email.length() == 0) {
             mLoginError.setVisibility(View.VISIBLE);
             mLoginError.setText("Enter your email...");
             return;
         }
 
+        // Disable the button and text field while we call the server
         mLoginButton.setEnabled(false);
         mEmailField.setEnabled(false);
         mLoginProgress.setVisibility(View.VISIBLE);
 
-        final Activity self = this;
-
         RequestQueue queue = Volley.newRequestQueue(this);
         String url = getString(R.string.api_url) + "?login=1&email=" + email;
 
-
+        // Make a request to login
         JsonObjectRequest jsObjRequest = new JsonObjectRequest
                 (Request.Method.GET, url, null, new Response.Listener<JSONObject>() {
                     @Override
                     public void onResponse(JSONObject response) {
 
+                        // See if the response has an error
                         try {
+                            // Error
                             response.getString("error");
                             mLoginButton.setEnabled(true);
                             mEmailField.setEnabled(true);
@@ -94,20 +125,24 @@ public class LoginActivity extends ActionBarActivity implements View.OnClickList
                             mLoginError.setVisibility(View.VISIBLE);
                             mLoginError.setText("Email not found...");
                         } catch (JSONException e) {
+                            // No error
+                            // Save the email
                             SharedPreferences.Editor editor =
-                                    PreferenceManager.getDefaultSharedPreferences(self).edit();
-                            editor.putString("User Email", email);
+                                    PreferenceManager.getDefaultSharedPreferences(LoginActivity.this).edit();
+                            editor.putString(PREF_KEY, email);
                             editor.apply();
 
-                            Intent i = new Intent(self, MainActivity.class);
+                            // Start the main activity
+                            Intent i = new Intent(LoginActivity.this, MainActivity.class);
                             startActivity(i);
-                            self.finish();
+                            LoginActivity.this.finish();
                         }
                     }
                 }, new Response.ErrorListener() {
 
                     @Override
                     public void onErrorResponse(VolleyError error) {
+                        // Error on the request
                         Log.d("Volley Error", error.toString());
                         mLoginButton.setEnabled(true);
                         mEmailField.setEnabled(true);
@@ -123,6 +158,18 @@ public class LoginActivity extends ActionBarActivity implements View.OnClickList
 
     }
 
+    @Override
+    public void onClick(View v) {
+        // Handle each button
+        switch (v.getId()) {
+            case R.id.bLogin:
+                login();
+                break;
+            default:
+                Log.d("Button Click", "Action Not Implemented");
+                break;
+        }
+    }
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
@@ -144,17 +191,5 @@ public class LoginActivity extends ActionBarActivity implements View.OnClickList
         }
 
         return super.onOptionsItemSelected(item);
-    }
-
-    @Override
-    public void onClick(View v) {
-        switch (v.getId()) {
-            case R.id.bLogin:
-                login();
-                break;
-            default:
-                Log.d("Button Click", "Action Not Implemented");
-                break;
-        }
     }
 }

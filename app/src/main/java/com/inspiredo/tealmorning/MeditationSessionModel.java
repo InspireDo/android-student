@@ -4,21 +4,16 @@ import java.util.Date;
 
 /**
  * Models a previous meditation session.
+ *
+ * Created by Erik Kessler
+ * (c) 2015 inspireDo.
  */
-public class MeditationSessionModel {
-    private Date mDate;
-    private int  mIndex;
+class MeditationSessionModel {
+    private final Date mDate;
+    private final int  mIndex;
 
     public MeditationSessionModel(Date date, int index) {
         mDate = date;
-        mIndex = index;
-    }
-
-    public void setDate(Date date) {
-        mDate = date;
-    }
-
-    public void setIndex(int index){
         mIndex = index;
     }
 
