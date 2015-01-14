@@ -54,8 +54,37 @@ public class MainActivity extends ActionBarActivity
     private RelativeLayout
                         mControlLayout;
 
-    private MyMeditation.MeditationProgressListener
-                        mMeditationProgressListener;
+    public MyMeditation.MeditationProgressListener
+                        mMeditationProgressListener = new MyMeditation.MeditationProgressListener() {
+        @Override
+        public void numberSectionsSet(int tracks) {
+            mDurationPB.setProgress(0);
+            mDurationPB.setMax(tracks);
+        }
+
+        @Override
+        public void durationSet(int duration) {
+            Log.d("MainActivity", "Duration: " + duration);
+            mDurationPB.setProgress(0);
+            mDurationPB.setMax(duration);
+            mDuration = duration;
+            mTimerTV.setText(String.format("%d:%02d", duration/600, (duration/10)%60));
+
+        }
+
+        @Override
+        public void onTrackLoaded(int done, int total) {
+            Log.d("Loading", "Loaded " + done + " of " + total);
+            mDurationPB.setProgress(done);
+        }
+
+        @Override
+        public void tick() {
+
+            mDurationPB.incrementProgressBy(1);
+            mTimerTV.setText(String.format("%d:%02d", --mDuration/600, (mDuration/10)%60));
+        }
+    };
 
     private MyMeditation
                         mMeditationSession;
@@ -108,37 +137,6 @@ public class MainActivity extends ActionBarActivity
 
         mStopBTN.setText("Start");
 
-        mMeditationProgressListener = new MyMeditation.MeditationProgressListener() {
-            @Override
-            public void numberSectionsSet(int tracks) {
-                mDurationPB.setProgress(0);
-                mDurationPB.setMax(tracks);
-            }
-
-            @Override
-            public void durationSet(int duration) {
-                Log.d("MainActivity", "Duration: " + duration);
-                mDurationPB.setProgress(0);
-                mDurationPB.setMax(duration);
-                mDuration = duration;
-                mTimerTV.setText(String.format("%d:%02d", duration/600, (duration/10)%60));
-
-            }
-
-            @Override
-            public void onTrackLoaded(int done, int total) {
-                Log.d("Loading", "Loaded " + done + " of " + total);
-                mDurationPB.setProgress(done);
-            }
-
-            @Override
-            public void tick() {
-
-                mDurationPB.incrementProgressBy(1);
-                mTimerTV.setText(String.format("%d:%02d", --mDuration/600, (mDuration/10)%60));
-            }
-        };
-
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
         mUserEmail = prefs.getString("User Email", "kessler.penguin55@gmail.com");
 
@@ -186,7 +184,21 @@ public class MainActivity extends ActionBarActivity
                 } else if (mPlayState == STATUS_PLAYING) {
                     mControlLayout.setVisibility(View.INVISIBLE);
                     mDurationPB.setProgress(0);
-                    mMeditationSession.stop();
+
+                    Intent i = new Intent(this, SessionPlaybackService.class);
+                    ServiceConnection sc = new ServiceConnection() {
+                        @Override
+                        public void onServiceConnected(ComponentName name, IBinder service) {
+                            ((SessionPlaybackService.SessionBinder) service).getService().stopSession(mMeditationSession);
+                        }
+
+                        @Override
+                        public void onServiceDisconnected(ComponentName name) {
+
+                        }
+                    };
+                    bindService(i, sc, 0);
+
                     mPlayState = STATUS_UNPREP;
                     mStopBTN.setText("Load Session");
                 }
@@ -205,6 +217,10 @@ public class MainActivity extends ActionBarActivity
         }
     }
 
+    public MyMeditation.MeditationProgressListener getProgressListener() {
+        return mMeditationProgressListener;
+    }
+
     private void logout() {
         SharedPreferences.Editor editor = PreferenceManager.getDefaultSharedPreferences(this)
                 .edit();
@@ -214,6 +230,35 @@ public class MainActivity extends ActionBarActivity
         startActivity(i);
         finish();
 
+    }
+
+    public void meditationDone(boolean prev) {
+        Log.d("Mediation Status", "Mediation Done!");
+        mStopBTN.setVisibility(View.INVISIBLE);
+        mControlLayout.setVisibility(View.INVISIBLE);
+        mPlayState = STATUS_UNPREP;
+
+        if(prev) {
+            mSessionDateTV.setText("Select Session");
+            return;
+        }
+
+        mStreakPB.setVisibility(View.VISIBLE);
+
+        int index = mAdapter.getItem(mAdapter.getCount() - 2).getIndex() + 1;
+        mAdapter.insert(new MeditationSessionModel(new Date(), index), mAdapter.getCount() -1);
+        mAdapter.notifyDataSetChanged();
+        mHistoryList.setSelection(mAdapter.getCount() -1);
+
+    }
+
+    public void setStreakText(String streak) {
+        mStreakTV.setText(streak);
+    }
+
+    public void setPrepCurrSections(JSONArray next) {
+        mCurrentSections = next;
+        prepSections(mCurrentSections);
     }
 
     public void getJSON() {
@@ -287,10 +332,10 @@ public class MainActivity extends ActionBarActivity
         queue.add(jsObjRequest);
     }
 
+
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        if (mMeditationSession != null) mMeditationSession.stop();
     }
 
     private void prepSections(JSONArray jsArray) {
@@ -298,6 +343,9 @@ public class MainActivity extends ActionBarActivity
             mSessionDateTV.setText("No Next Session Found");
             mStreakPB.setVisibility(View.INVISIBLE);
             return;
+        } else if (!mIsPrev) {
+            mSessionDateTV.setText("Next Session");
+
         }
         mMeditationSession = new MyMeditation();
 
@@ -315,67 +363,7 @@ public class MainActivity extends ActionBarActivity
 
         }
 
-        final Context self = this;
-
         mMeditationSession.setProgressListener(mMeditationProgressListener);
-
-        mMeditationSession.setOnMeditationDoneListener(new MyMeditation.OnMeditationDoneListener() {
-            @Override
-            public void onMeditationDone() {
-                Log.d("Mediation Status", "Mediation Done!");
-                mStopBTN.setVisibility(View.INVISIBLE);
-                mControlLayout.setVisibility(View.INVISIBLE);
-                mPlayState = STATUS_UNPREP;
-
-                if(mIsPrev) {
-                    mSessionDateTV.setText("Select Session");
-                    Toast.makeText(self, "Session Complete! Nice Work!",
-                            Toast.LENGTH_LONG).show();
-                    return;
-                }
-
-                mStreakPB.setVisibility(View.VISIBLE);
-
-                int index = mAdapter.getItem(mAdapter.getCount() - 2).getIndex() + 1;
-                mAdapter.insert(new MeditationSessionModel(new Date(), index), mAdapter.getCount() -1);
-                mAdapter.notifyDataSetChanged();
-                mHistoryList.setSelection(mAdapter.getCount() -1);
-
-                RequestQueue queue = Volley.newRequestQueue(self);
-                String url = getString(R.string.api_url) + "?email=" + mUserEmail;
-
-
-                JsonObjectRequest jsObjRequest = new JsonObjectRequest
-                        (Request.Method.POST, url, null, new Response.Listener<JSONObject>() {
-                            @Override
-                            public void onResponse(JSONObject response) {
-                                Log.d("Response", response.toString());
-
-                                try {
-                                    if (response.getString("status").equals("okay")) {
-                                        Toast.makeText(self, "Session Complete! Nice Work!",
-                                                Toast.LENGTH_LONG).show();
-                                        mStreakTV.setText(response.getString("streak"));
-                                        mCurrentSections = response.getJSONArray("next");
-                                        prepSections(mCurrentSections);
-                                    }
-                                } catch (JSONException e) {
-                                    e.printStackTrace();
-                                }
-                            }
-                        }, new Response.ErrorListener() {
-
-                            @Override
-                            public void onErrorResponse(VolleyError error) {
-                                Log.d("Volley Error", error.toString());
-
-
-                            }
-                        });
-
-                queue.add(jsObjRequest);
-            }
-        });
 
         mMeditationSession.prepare(new MyMeditation.OnMeditationReadyListener() {
             @Override
@@ -385,23 +373,6 @@ public class MainActivity extends ActionBarActivity
                 mStopBTN.setVisibility(View.VISIBLE);
                 mStopBTN.setText("Start Session");
                 mPlayState = STATUS_PREP;
-
-                Intent i = new Intent(MainActivity.this, SessionPlaybackService.class);
-                startService(i);
-
-                ServiceConnection serviceConnection = new ServiceConnection() {
-                    @Override
-                    public void onServiceConnected(ComponentName name, IBinder service) {
-                        ((SessionPlaybackService.SessionBinder) service).getService().playSession(mMeditationSession);
-                    }
-
-                    @Override
-                    public void onServiceDisconnected(ComponentName name) {
-
-                    }
-                };
-                MainActivity.this.bindService(i, serviceConnection, 0);
-
             }
         });
 
@@ -409,7 +380,22 @@ public class MainActivity extends ActionBarActivity
 
     protected void playSections() {
         mPlayState = STATUS_PLAYING;
-        mMeditationSession.play();
+        Intent i = new Intent(MainActivity.this, SessionPlaybackService.class);
+        startService(i);
+
+        ServiceConnection serviceConnection = new ServiceConnection() {
+            @Override
+            public void onServiceConnected(ComponentName name, IBinder service) {
+                ((SessionPlaybackService.SessionBinder) service).getService().setActivity(MainActivity.this);
+                ((SessionPlaybackService.SessionBinder) service).getService().playSession(mMeditationSession, mIsPrev, mUserEmail);
+            }
+
+            @Override
+            public void onServiceDisconnected(ComponentName name) {
+
+            }
+        };
+        MainActivity.this.bindService(i, serviceConnection, 0);
         mStopBTN.setText("Stop Session");
         mControlLayout.setVisibility(View.VISIBLE);
         mPlayBTN.setText(getString(R.string.button_pause));
@@ -451,6 +437,7 @@ public class MainActivity extends ActionBarActivity
 
     @Override
     public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+        if (mPlayState == STATUS_PLAYING) return;
         MeditationSessionModel session = mAdapter.getItem(position);
 
         if (session.getIndex() == -1) {
