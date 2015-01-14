@@ -1,87 +1,57 @@
 package com.inspiredo.tealmorning;
 
 import android.app.Notification;
-import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Intent;
 import android.os.Binder;
 import android.os.IBinder;
 import android.util.Log;
-import android.widget.Toast;
 
 public class SessionPlaybackService extends Service {
-    private NotificationManager mNM;
 
-    // Unique Identification Number for the Notification.
-    // We use it on Notification start, and to cancel it.
-    private int NOTIFICATION = 1;
+    private final IBinder mBinder = new SessionBinder();
 
-    /**
-     * Class for clients to access.  Because we know this service always
-     * runs in the same process as its clients, we don't need to deal with
-     * IPC.
-     */
+    public SessionPlaybackService() {
+    }
+
     public class SessionBinder extends Binder {
         SessionPlaybackService getService() {
             return SessionPlaybackService.this;
         }
     }
 
-    @Override
-    public void onCreate() {
-        mNM = (NotificationManager)getSystemService(NOTIFICATION_SERVICE);
+    public void playSession(MyMeditation session) {
+        Intent i = new Intent(this, MainActivity.class);
+        PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, i,
+                PendingIntent.FLAG_UPDATE_CURRENT);
+        Notification.Builder builder = new Notification.Builder(this)
+                .setSmallIcon(R.drawable.abc_btn_check_material)
+                .setContentTitle("Meditation Session")
+                .setContentText("In Progress")
+                .setContentIntent(pendingIntent);
 
-        // Display a notification about us starting.  We put an icon in the status bar.
-        showNotification();
+        Notification notification = builder.build();
+        startForeground(1, notification);
+
+        session.setOnMeditationDoneListener(new MyMeditation.OnMeditationDoneListener() {
+            @Override
+            public void onMeditationDone() {
+                Log.d("Meditation", "DONE");
+                stopSelf();
+            }
+        });
+        session.play();
     }
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        Log.i("SessionPlaybackService", "Received start id " + startId + ": " + intent);
-        // We want this service to continue running until it is explicitly
-        // stopped, so return sticky.
+
         return START_STICKY;
-    }
-
-    @Override
-    public void onDestroy() {
-        // Cancel the persistent notification.
-        mNM.cancel(NOTIFICATION);
-
-        // Tell the user we stopped.
-        Toast.makeText(this, "service stopped", Toast.LENGTH_SHORT).show();
     }
 
     @Override
     public IBinder onBind(Intent intent) {
         return mBinder;
-    }
-
-    // This is the object that receives interactions from clients.  See
-    // RemoteService for a more complete example.
-    private final IBinder mBinder = new SessionBinder();
-
-    /**
-     * Show a notification while this service is running.
-     */
-    private void showNotification() {
-        // In this sample, we'll use the same text for the ticker and the expanded notification
-        CharSequence text = "session started";
-
-        // Set the icon, scrolling text and timestamp
-        Notification notification = new Notification(R.drawable.abc_cab_background_top_material, text,
-                System.currentTimeMillis());
-
-        // The PendingIntent to launch our activity if the user selects this notification
-        PendingIntent contentIntent = PendingIntent.getActivity(this, 0,
-                new Intent(this, MainActivity.class), 0);
-
-        // Set the info for the views that show in the notification panel.
-        notification.setLatestEventInfo(this, "label",
-                text, contentIntent);
-
-        // Send the notification.
-        startForeground(NOTIFICATION, notification);
     }
 }
