@@ -61,6 +61,7 @@ public class SessionPlaybackService extends Service {
                 if (prev) {
                     Toast.makeText(SessionPlaybackService.this, "Session Complete! Nice Work!",
                             Toast.LENGTH_LONG).show();
+                    stopForeground(true);
                     stopSelf();
                     return;
                 }
@@ -103,10 +104,12 @@ public class SessionPlaybackService extends Service {
                                 }
 
                                 // Stop the service
+                                stopForeground(true);
                                 stopSelf();
 
                             }
                         } catch (JSONException e) {
+                            stopForeground(true);
                             stopSelf();
                         }
                     }
@@ -114,6 +117,7 @@ public class SessionPlaybackService extends Service {
 
                     @Override
                     public void onErrorResponse(VolleyError error) {
+                        stopForeground(true);
                         stopSelf();
 
 
