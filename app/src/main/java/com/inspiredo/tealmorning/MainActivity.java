@@ -33,12 +33,8 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.IOException;
-import java.text.DateFormat;
 import java.text.ParseException;
-import java.text.SimpleDateFormat;
-import java.util.Date;
 import java.util.Random;
-import java.util.TimeZone;
 
 /**
  * This class is the main view that a logged in user will see.
@@ -56,7 +52,7 @@ public class MainActivity extends ActionBarActivity
      *
      * mStreakTV        - displays streak
      * mTimerTV         - displays time left in session
-     * mSessionDateTV   - displays the date of the currently selected session
+     * mSessionTitleTV   - displays the date of the currently selected session
      *
      * mLoadingPB       - indicates that the application is working (often server requests)
      * mDurationPB      - indicates how far through the session we are
@@ -66,7 +62,7 @@ public class MainActivity extends ActionBarActivity
      *
      * mControlLayout   - holds the play button, duration progress, and time left
      */
-    private TextView    mStreakTV, mTimerTV, mSessionDateTV;
+    private TextView    mStreakTV, mTimerTV, mSessionTitleTV;
     private ProgressBar mLoadingPB, mDurationPB;
     private Button      mStartBTN, mPlayBTN;
     private ListView    mHistoryList;
@@ -110,9 +106,10 @@ public class MainActivity extends ActionBarActivity
     private MyMeditation mMeditationSession;
 
     /**
-     * The sections for the next session
+     * The sections and title for the next session
      */
     private JSONArray mNextSections;
+    private String mNextTitle;
 
     /**
      * The user's email. Needed for server calls
@@ -169,7 +166,7 @@ public class MainActivity extends ActionBarActivity
         mPlayBTN        = (Button)      findViewById(R.id.bTogglePlay);
         mStreakTV       = (TextView)    findViewById(R.id.tvStreak);
         mTimerTV        = (TextView)    findViewById(R.id.tvTimeLeft);
-        mSessionDateTV  = (TextView)    findViewById(R.id.tvSessionDate);
+        mSessionTitleTV = (TextView)    findViewById(R.id.tvSessionTitle);
         mLoadingPB      = (ProgressBar) findViewById(R.id.pbGetStreak);
         mDurationPB     = (ProgressBar) findViewById(R.id.pbDuration);
         mHistoryList    = (ListView)    findViewById(R.id.lvHistory);
@@ -216,6 +213,7 @@ public class MainActivity extends ActionBarActivity
                             // Get the streak and the sections for the next session
                             mStreakTV.setText(response.getString("streak"));
                             mNextSections = response.getJSONArray("sections");
+                            mNextTitle = response.getString("title");
 
                             //Prepare the next sections for playback
                             prepSections(mNextSections);
@@ -245,7 +243,7 @@ public class MainActivity extends ActionBarActivity
      * @param errorMessage The error message to display
      */
     private void requestError(String errorMessage) {
-        mSessionDateTV.setText(errorMessage);
+        mSessionTitleTV.setText(errorMessage);
         mLoadingPB.setVisibility(View.INVISIBLE);
     }
 
@@ -262,21 +260,18 @@ public class MainActivity extends ActionBarActivity
         // Create a new adapter
         mAdapter = new SessionAdapter(MainActivity.this, R.layout.session_row);
 
-
-        // Date format for parsing
-        DateFormat df = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
-        df.setTimeZone(TimeZone.getTimeZone("UTC"));
-
         // Loop and add each task to the adapter
+        String title;
+        int index;
         for (int i = 0; i < prev.length(); i++) {
             JSONObject session = prev.getJSONObject(i);
 
             // Get the Task properties
-            Date date = df.parse(session.getString("date_complete"));
-            int index = session.getInt("index");
+            title = session.getString("title");
+            index = session.getInt("index");
 
             // Add new TaskModel to the adapter
-            mAdapter.add(new MeditationSessionModel(date, index));
+            mAdapter.add(new MeditationSessionModel(title, index));
 
         }
 
@@ -308,7 +303,7 @@ public class MainActivity extends ActionBarActivity
          * there is no next session but since array.length isn't 0 there is a session.
          */
         if (!mIsPrev) {
-            mSessionDateTV.setText("Next Session");
+            mSessionTitleTV.setText("Next Session - " + mNextTitle);
 
         }
 
@@ -402,7 +397,7 @@ public class MainActivity extends ActionBarActivity
 
         // If it was a replay we just need to set the text correctly
         if(prev) {
-            mSessionDateTV.setText("Select Session");
+            mSessionTitleTV.setText("Select Session");
             return;
         }
 
@@ -414,7 +409,7 @@ public class MainActivity extends ActionBarActivity
         int index = mAdapter.getItem(mAdapter.getCount() - 2).getIndex() + 1;
 
         // Insert the new session and update the list
-        mAdapter.insert(new MeditationSessionModel(new Date(), index), mAdapter.getCount() -1);
+        mAdapter.insert(new MeditationSessionModel(mNextTitle, index), mAdapter.getCount() -1);
         mAdapter.notifyDataSetChanged();
         mHistoryList.setSelection(mAdapter.getCount() - 1);
 
@@ -467,6 +462,15 @@ public class MainActivity extends ActionBarActivity
     public void setPrepCurrSections(JSONArray next) {
         mNextSections = next;
         prepSections(mNextSections);
+    }
+
+    /**
+     * Called by the service when the next title is retrieved.
+     * @param title The next title
+     */
+    public void setNextTitle(String title) {
+        mNextTitle = title;
+        mSessionTitleTV.setText("Next Session - " + title);
     }
 
     /**
@@ -554,16 +558,15 @@ public class MainActivity extends ActionBarActivity
         if (session.getIndex() == -1) {
             /* Prepare the next session */
             mIsPrev = false;
-            mSessionDateTV.setText("Next Session");
+            mSessionTitleTV.setText("Next Session - " + mNextTitle);
             prepSections(mNextSections);
 
         } else {
             /* Need to get the previous session using the index */
             mIsPrev = true;
 
-            // Set the label to be the date of the session
-            SimpleDateFormat format = new SimpleDateFormat("MM/dd");
-            mSessionDateTV.setText(format.format(session.getDate()));
+            // Set the label to be the title of the session
+            mSessionTitleTV.setText(session.getTitle());
 
             mLoadingPB.setVisibility(View.VISIBLE);
             mStartBTN.setVisibility(View.INVISIBLE);

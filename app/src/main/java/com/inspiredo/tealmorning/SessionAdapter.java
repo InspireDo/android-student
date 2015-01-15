@@ -7,8 +7,6 @@ import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
 import android.widget.TextView;
 
-import java.text.SimpleDateFormat;
-
 /**
  * Adapter for History of sessions
  *
@@ -39,8 +37,7 @@ class SessionAdapter extends ArrayAdapter<MeditationSessionModel> {
         if (session.getIndex() == -1) {
             date.setText("Next Session");
         } else {
-            SimpleDateFormat format = new SimpleDateFormat("MM/dd");
-            date.setText(format.format(session.getDate()));
+            date.setText(session.getTitle());
         }
 
 

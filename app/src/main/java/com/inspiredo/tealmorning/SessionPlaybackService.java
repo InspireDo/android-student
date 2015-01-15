@@ -99,8 +99,10 @@ public class SessionPlaybackService extends Service {
 
                                 // Update the activity if it exists
                                 if (mActivity != null) {
+                                    mActivity.setNextTitle(response.getString("title"));
                                     mActivity.setStreakText(response.getString("streak"));
                                     mActivity.setPrepCurrSections(response.getJSONArray("next"));
+
                                 }
 
                                 // Stop the service
