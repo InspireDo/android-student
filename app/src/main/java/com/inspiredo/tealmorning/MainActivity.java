@@ -1,5 +1,6 @@
 package com.inspiredo.tealmorning;
 
+import android.app.FragmentManager;
 import android.content.ComponentName;
 import android.content.Intent;
 import android.content.ServiceConnection;
@@ -119,7 +120,7 @@ public class MainActivity extends ActionBarActivity
     /**
      * Adapter for the history list
      */
-    private ArrayAdapter<MeditationSessionModel>
+    private SessionAdapter
                         mAdapter;
 
     /**
@@ -127,6 +128,8 @@ public class MainActivity extends ActionBarActivity
      */
     private SessionPlaybackService.SessionBinder
                         mSessionBinder;
+    private ServiceConnection
+                        mServiceConnection;
 
     /**
      * Constants that describe the state of the mediation session.
@@ -178,16 +181,84 @@ public class MainActivity extends ActionBarActivity
         mPlayBTN.setOnClickListener(this);
         mHistoryList.setOnItemClickListener(this);
 
-        // Set visibility
-        mLoadingPB.setVisibility(View.INVISIBLE);
-        mStartBTN.setVisibility(View.INVISIBLE);
-        mControlLayout.setVisibility(View.INVISIBLE);
-
         // Get the user's email from shared preferences
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
         mUserEmail = prefs.getString(LoginActivity.PREF_KEY, "");
 
-        getJSON(); // Make a call to the server
+
+        if (savedInstanceState == null) {
+
+            // Set visibility
+            mLoadingPB.setVisibility(View.INVISIBLE);
+            mStartBTN.setVisibility(View.INVISIBLE);
+            mControlLayout.setVisibility(View.INVISIBLE);
+
+
+            getJSON(); // Make a call to the server
+        } else {
+            mPlayState = savedInstanceState.getInt("Play State", -1);
+
+            // find the retained fragment on activity restarts
+            FragmentManager fm = getFragmentManager();
+            DataFragment dataFragment = (DataFragment) fm.findFragmentByTag("data");
+
+            // create the fragment and data the first time
+            if (dataFragment != null) {
+                mMeditationSession = dataFragment.getCurrentSession();
+                mNextSections = dataFragment.getNextSession();
+                mAdapter = dataFragment.getAdapter();
+                mHistoryList.setAdapter(mAdapter);
+                mHistoryList.setSelection(mAdapter.getCount() - 1);
+
+            }
+
+            mDurationPB.setMax(savedInstanceState.getInt("Progress Max", 1));
+            mDurationPB.setProgress(savedInstanceState.getInt("Progress", 0));
+            mDuration = savedInstanceState.getInt("Duration");
+            mTimerTV.setText(String.format("%d:%02d", mDuration/600, (mDuration/10)%60));
+            mNextTitle = savedInstanceState.getString("Next Title");
+
+            mStreakTV.setText(savedInstanceState.getString("Streak"));
+            mIsPrev = savedInstanceState.getBoolean("Is Prev");
+
+            if (mPlayState == STATUS_PLAYING) {
+                mControlLayout.setVisibility(View.VISIBLE);
+            } else {
+                mControlLayout.setVisibility(View.INVISIBLE);
+            }
+
+            //noinspection ResourceType
+            mStartBTN.setVisibility(savedInstanceState.getInt("Start Vis"));
+
+            mStartBTN.setText(savedInstanceState.getString("Start Text"));
+
+            //noinspection ResourceType
+            mLoadingPB.setVisibility(savedInstanceState.getInt("Loading Vis"));
+
+            mPlayBTN.setText(savedInstanceState.getString("Play Text"));
+            mSessionTitleTV.setText(savedInstanceState.getString("Session Title"));
+
+            if (mPlayState == STATUS_PLAYING) {
+                ServiceConnection reconnect = new ServiceConnection() {
+                    @Override
+                    public void onServiceConnected(ComponentName name, IBinder service) {
+                        mServiceConnection = this;
+                        ((SessionPlaybackService.SessionBinder) service).getService().setActivity(MainActivity.this);
+                    }
+
+                    @Override
+                    public void onServiceDisconnected(ComponentName name) {
+                        mServiceConnection= null;
+
+                    }
+                };
+                Intent i = new Intent(MainActivity.this, SessionPlaybackService.class);
+                MainActivity.this.bindService(i, reconnect, BIND_AUTO_CREATE);
+            }
+
+
+
+        }
     }
 
     /**
@@ -375,6 +446,7 @@ public class MainActivity extends ActionBarActivity
     private final ServiceConnection PLAY_SERVICE_CONNECTION = new ServiceConnection() {
         @Override
         public void onServiceConnected(ComponentName name, IBinder service) {
+            mServiceConnection = this;
             mSessionBinder = (SessionPlaybackService.SessionBinder) service;
             mSessionBinder.getService().setActivity(MainActivity.this);
             mSessionBinder.getService().playSession(mMeditationSession, mIsPrev, mUserEmail);
@@ -382,6 +454,7 @@ public class MainActivity extends ActionBarActivity
 
         @Override
         public void onServiceDisconnected(ComponentName name) {
+            mServiceConnection = null;
             mSessionBinder = null;
         }
     };
@@ -654,5 +727,49 @@ public class MainActivity extends ActionBarActivity
         // Inflate the menu; this adds items to the action bar if it is present.
         getMenuInflater().inflate(R.menu.menu_main, menu);
         return true;
+    }
+
+    @Override
+    protected void onSaveInstanceState(Bundle outState) {
+
+        Log.d("INSTANCE STATE", "SAVE");
+
+        outState.putInt("Play State", mPlayState);
+        outState.putInt("Progress Max", mDurationPB.getMax());
+        outState.putInt("Progress", mDurationPB.getProgress());
+
+        // find the retained fragment on activity restarts
+        FragmentManager fm = getFragmentManager();
+        DataFragment dataFragment = (DataFragment) fm.findFragmentByTag("data");
+
+        // create the fragment and data the first time
+        if (dataFragment == null) {
+            dataFragment = new DataFragment();
+            fm.beginTransaction().add(dataFragment, "data").commit();
+        }
+
+        dataFragment.setCurrentSession(mMeditationSession);
+        dataFragment.setNextSession(mNextSections);
+        dataFragment.setAdapter(mAdapter);
+
+        outState.putString("Streak", mStreakTV.getText().toString());
+        outState.putString("Next Title", mNextTitle);
+        outState.putInt("Duration", mDuration);
+        outState.putBoolean("Is Prev", mIsPrev);
+        outState.putInt("Start Vis", mStartBTN.getVisibility());
+        outState.putString("Start Text", mStartBTN.getText().toString());
+        outState.putInt("Loading Vis", mLoadingPB.getVisibility());
+        outState.putString("Play Text", mPlayBTN.getText().toString());
+        outState.putString("Session Title", mSessionTitleTV.getText().toString());
+
+        super.onSaveInstanceState(outState);
+
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (mServiceConnection != null)
+            unbindService(mServiceConnection);
     }
 }
