@@ -15,7 +15,6 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.AdapterView;
-import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.ListView;
 import android.widget.ProgressBar;
@@ -186,8 +185,9 @@ public class MainActivity extends ActionBarActivity
         mUserEmail = prefs.getString(LoginActivity.PREF_KEY, "");
 
 
+        // Check if have a saved state
         if (savedInstanceState == null) {
-
+            // Build it fresh
             // Set visibility
             mLoadingPB.setVisibility(View.INVISIBLE);
             mStartBTN.setVisibility(View.INVISIBLE);
@@ -196,49 +196,55 @@ public class MainActivity extends ActionBarActivity
 
             getJSON(); // Make a call to the server
         } else {
+            // Recreate the state
             mPlayState = savedInstanceState.getInt("Play State", -1);
 
             // find the retained fragment on activity restarts
             FragmentManager fm = getFragmentManager();
             DataFragment dataFragment = (DataFragment) fm.findFragmentByTag("data");
 
-            // create the fragment and data the first time
             if (dataFragment != null) {
+                // Get the session, next sections, and adapter
                 mMeditationSession = dataFragment.getCurrentSession();
                 mNextSections = dataFragment.getNextSession();
                 mAdapter = dataFragment.getAdapter();
+
+                // Setup the apdapter
                 mHistoryList.setAdapter(mAdapter);
                 mHistoryList.setSelection(mAdapter.getCount() - 1);
 
             }
 
+            // Set the duration and duration progress bar
+            mDuration = savedInstanceState.getInt("Duration");
             mDurationPB.setMax(savedInstanceState.getInt("Progress Max", 1));
             mDurationPB.setProgress(savedInstanceState.getInt("Progress", 0));
-            mDuration = savedInstanceState.getInt("Duration");
             mTimerTV.setText(String.format("%d:%02d", mDuration/600, (mDuration/10)%60));
-            mNextTitle = savedInstanceState.getString("Next Title");
 
-            mStreakTV.setText(savedInstanceState.getString("Streak"));
+            // Restore the next title and Is Prev
+            mNextTitle = savedInstanceState.getString("Next Title");
             mIsPrev = savedInstanceState.getBoolean("Is Prev");
 
-            if (mPlayState == STATUS_PLAYING) {
-                mControlLayout.setVisibility(View.VISIBLE);
-            } else {
-                mControlLayout.setVisibility(View.INVISIBLE);
-            }
-
-            //noinspection ResourceType
-            mStartBTN.setVisibility(savedInstanceState.getInt("Start Vis"));
-
-            mStartBTN.setText(savedInstanceState.getString("Start Text"));
-
-            //noinspection ResourceType
-            mLoadingPB.setVisibility(savedInstanceState.getInt("Loading Vis"));
-
-            mPlayBTN.setText(savedInstanceState.getString("Play Text"));
+            // Set the streak and title
+            mStreakTV.setText(savedInstanceState.getString("Streak"));
             mSessionTitleTV.setText(savedInstanceState.getString("Session Title"));
 
+            // Restore the start/stop button
+            //noinspection ResourceType
+            mStartBTN.setVisibility(savedInstanceState.getInt("Start Vis"));
+            mStartBTN.setText(savedInstanceState.getString("Start Text"));
+
+            // Restore the play/pause button
+            //noinspection ResourceType
+            mLoadingPB.setVisibility(savedInstanceState.getInt("Loading Vis"));
+            mPlayBTN.setText(savedInstanceState.getString("Play Text"));
+
+
+            // Check if we are playing
             if (mPlayState == STATUS_PLAYING) {
+                mControlLayout.setVisibility(View.VISIBLE); // Show the controls
+
+                // Reconnect to the playback service
                 ServiceConnection reconnect = new ServiceConnection() {
                     @Override
                     public void onServiceConnected(ComponentName name, IBinder service) {
@@ -254,6 +260,8 @@ public class MainActivity extends ActionBarActivity
                 };
                 Intent i = new Intent(MainActivity.this, SessionPlaybackService.class);
                 MainActivity.this.bindService(i, reconnect, BIND_AUTO_CREATE);
+            } else {
+                mControlLayout.setVisibility(View.INVISIBLE); // Hide the controls
             }
 
 
@@ -732,26 +740,9 @@ public class MainActivity extends ActionBarActivity
     @Override
     protected void onSaveInstanceState(Bundle outState) {
 
-        Log.d("INSTANCE STATE", "SAVE");
-
         outState.putInt("Play State", mPlayState);
         outState.putInt("Progress Max", mDurationPB.getMax());
         outState.putInt("Progress", mDurationPB.getProgress());
-
-        // find the retained fragment on activity restarts
-        FragmentManager fm = getFragmentManager();
-        DataFragment dataFragment = (DataFragment) fm.findFragmentByTag("data");
-
-        // create the fragment and data the first time
-        if (dataFragment == null) {
-            dataFragment = new DataFragment();
-            fm.beginTransaction().add(dataFragment, "data").commit();
-        }
-
-        dataFragment.setCurrentSession(mMeditationSession);
-        dataFragment.setNextSession(mNextSections);
-        dataFragment.setAdapter(mAdapter);
-
         outState.putString("Streak", mStreakTV.getText().toString());
         outState.putString("Next Title", mNextTitle);
         outState.putInt("Duration", mDuration);
@@ -762,6 +753,23 @@ public class MainActivity extends ActionBarActivity
         outState.putString("Play Text", mPlayBTN.getText().toString());
         outState.putString("Session Title", mSessionTitleTV.getText().toString());
 
+        /* Use a Fragment to store objects */
+        FragmentManager fm = getFragmentManager();
+        DataFragment dataFragment = (DataFragment) fm.findFragmentByTag("data");
+
+        // create the fragment if needed
+        if (dataFragment == null) {
+            dataFragment = new DataFragment();
+            fm.beginTransaction().add(dataFragment, "data").commit();
+        }
+
+        // Save the session, sections, and adapter
+        dataFragment.setCurrentSession(mMeditationSession);
+        dataFragment.setNextSession(mNextSections);
+        dataFragment.setAdapter(mAdapter);
+
+
+
         super.onSaveInstanceState(outState);
 
     }
@@ -769,6 +777,8 @@ public class MainActivity extends ActionBarActivity
     @Override
     protected void onDestroy() {
         super.onDestroy();
+
+        // Unbind from the service
         if (mServiceConnection != null)
             unbindService(mServiceConnection);
     }

@@ -1,12 +1,8 @@
 package com.inspiredo.tealmorning;
 
 
-import android.os.Bundle;
 import android.app.Fragment;
-import android.view.LayoutInflater;
-import android.view.View;
-import android.view.ViewGroup;
-import android.widget.TextView;
+import android.os.Bundle;
 
 import org.json.JSONArray;
 
@@ -19,7 +15,6 @@ public class DataFragment extends Fragment {
     private JSONArray mNextSession;
     private MyMeditation mCurrentSession;
     private SessionAdapter mAdapter;
-    private SessionPlaybackService.SessionBinder mBinder;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -49,13 +44,5 @@ public class DataFragment extends Fragment {
 
     public SessionAdapter getAdapter() {
         return mAdapter;
-    }
-
-    public void setBinder(SessionPlaybackService.SessionBinder binder) {
-        mBinder = binder;
-    }
-
-    public SessionPlaybackService.SessionBinder getBinder() {
-        return mBinder;
     }
 }
