@@ -11,12 +11,9 @@ import android.os.IBinder;
 import android.preference.PreferenceManager;
 import android.support.v7.app.ActionBarActivity;
 import android.util.Log;
-import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
-import android.widget.AdapterView;
 import android.widget.Button;
-import android.widget.ListView;
 import android.widget.ProgressBar;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
@@ -33,7 +30,6 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.IOException;
-import java.text.ParseException;
 import java.util.Random;
 
 /**
@@ -44,8 +40,8 @@ import java.util.Random;
  * Created by Erik Kessler
  * (c) 2015 inspireDo.
  */
-public class MainActivity extends ActionBarActivity
-        implements View.OnClickListener, View.OnLongClickListener, AdapterView.OnItemClickListener {
+public class SessionDetailActivity extends ActionBarActivity
+        implements View.OnClickListener, View.OnLongClickListener {
 
     /**
      * UI elements
@@ -62,10 +58,9 @@ public class MainActivity extends ActionBarActivity
      *
      * mControlLayout   - holds the play button, duration progress, and time left
      */
-    private TextView    mStreakTV, mTimerTV, mSessionTitleTV;
+    private TextView    mTimerTV, mSessionTitleTV, mDescTV, mDurationTV;
     private ProgressBar mLoadingPB, mDurationPB;
-    private Button      mStartBTN, mPlayBTN;
-    private ListView    mHistoryList;
+    private Button      mPlayBTN;
     private RelativeLayout
                         mControlLayout;
 
@@ -87,6 +82,8 @@ public class MainActivity extends ActionBarActivity
             mDurationPB.setMax(duration);   // Set the max
             mDuration = duration;           // Store the duration
 
+            mDurationTV.setText(getDurationString(duration));
+
             // Set the timer to display the time left
             mTimerTV.setText(String.format("%d:%02d", duration/600, (duration/10)%60));
 
@@ -106,21 +103,9 @@ public class MainActivity extends ActionBarActivity
     private MyMeditation mMeditationSession;
 
     /**
-     * The sections and title for the next session
-     */
-    private JSONArray mNextSections;
-    private String mNextTitle;
-
-    /**
      * The user's email. Needed for server calls
      */
     private String      mUserEmail;
-
-    /**
-     * Adapter for the history list
-     */
-    private SessionAdapter
-                        mAdapter;
 
     /**
      * Binder to the session playback service
@@ -161,24 +146,21 @@ public class MainActivity extends ActionBarActivity
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
+        setContentView(R.layout.activity_session_detail);
 
         // Load from id
-        mStartBTN       = (Button)      findViewById(R.id.bStop);
         mPlayBTN        = (Button)      findViewById(R.id.bTogglePlay);
-        mStreakTV       = (TextView)    findViewById(R.id.tvStreak);
         mTimerTV        = (TextView)    findViewById(R.id.tvTimeLeft);
-        mSessionTitleTV = (TextView)    findViewById(R.id.tvSessionTitle);
-        mLoadingPB      = (ProgressBar) findViewById(R.id.pbGetStreak);
+        mSessionTitleTV = (TextView)    findViewById(R.id.tvTitle);
+        mDescTV         = (TextView)    findViewById(R.id.tvDescription);
+        mDurationTV     = (TextView)    findViewById(R.id.tvDuration);
+        mLoadingPB      = (ProgressBar) findViewById(R.id.pbLoading);
         mDurationPB     = (ProgressBar) findViewById(R.id.pbDuration);
-        mHistoryList    = (ListView)    findViewById(R.id.lvHistory);
         mControlLayout  = (RelativeLayout)
                                         findViewById(R.id.rlControls);
 
         // Set click listeners
-        mStartBTN.setOnClickListener(this);
         mPlayBTN.setOnClickListener(this);
-        mHistoryList.setOnItemClickListener(this);
 
         // Get the user's email from shared preferences
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
@@ -189,12 +171,17 @@ public class MainActivity extends ActionBarActivity
         if (savedInstanceState == null) {
             // Build it fresh
             // Set visibility
-            mLoadingPB.setVisibility(View.INVISIBLE);
-            mStartBTN.setVisibility(View.INVISIBLE);
+            mLoadingPB.setVisibility(View.VISIBLE);
             mControlLayout.setVisibility(View.INVISIBLE);
 
+            Intent i = getIntent();
 
-            getJSON(); // Make a call to the server
+            mSessionTitleTV.setText(i.getStringExtra(SessionsActivity.TITLE));
+            mDescTV.setText(i.getStringExtra(SessionsActivity.DESC));
+            mIsPrev = i.getBooleanExtra(SessionsActivity.PREV, true);
+
+
+            getSession(i.getIntExtra(SessionsActivity.INDEX, -1)); // Make a call to the server
         } else {
             // Recreate the state
             mPlayState = savedInstanceState.getInt("Play State", -1);
@@ -206,12 +193,6 @@ public class MainActivity extends ActionBarActivity
             if (dataFragment != null) {
                 // Get the session, next sections, and adapter
                 mMeditationSession = dataFragment.getCurrentSession();
-                mNextSections = dataFragment.getNextSession();
-                mAdapter = dataFragment.getAdapter();
-
-                // Setup the apdapter
-                mHistoryList.setAdapter(mAdapter);
-                mHistoryList.setSelection(mAdapter.getCount() - 1);
 
             }
 
@@ -222,17 +203,11 @@ public class MainActivity extends ActionBarActivity
             mTimerTV.setText(String.format("%d:%02d", mDuration/600, (mDuration/10)%60));
 
             // Restore the next title and Is Prev
-            mNextTitle = savedInstanceState.getString("Next Title");
             mIsPrev = savedInstanceState.getBoolean("Is Prev");
 
-            // Set the streak and title
-            mStreakTV.setText(savedInstanceState.getString("Streak"));
+            // Set the description and title
             mSessionTitleTV.setText(savedInstanceState.getString("Session Title"));
-
-            // Restore the start/stop button
-            //noinspection ResourceType
-            mStartBTN.setVisibility(savedInstanceState.getInt("Start Vis"));
-            mStartBTN.setText(savedInstanceState.getString("Start Text"));
+            mDescTV.setText(savedInstanceState.getString("Session Desc"));
 
             // Restore the play/pause button
             //noinspection ResourceType
@@ -249,7 +224,7 @@ public class MainActivity extends ActionBarActivity
                     @Override
                     public void onServiceConnected(ComponentName name, IBinder service) {
                         mServiceConnection = this;
-                        ((SessionPlaybackService.SessionBinder) service).getService().setActivity(MainActivity.this);
+                        ((SessionPlaybackService.SessionBinder) service).getService().setActivity(SessionDetailActivity.this);
                     }
 
                     @Override
@@ -258,8 +233,8 @@ public class MainActivity extends ActionBarActivity
 
                     }
                 };
-                Intent i = new Intent(MainActivity.this, SessionPlaybackService.class);
-                MainActivity.this.bindService(i, reconnect, BIND_AUTO_CREATE);
+                Intent i = new Intent(SessionDetailActivity.this, SessionPlaybackService.class);
+                SessionDetailActivity.this.bindService(i, reconnect, BIND_AUTO_CREATE);
             } else {
                 mControlLayout.setVisibility(View.INVISIBLE); // Hide the controls
             }
@@ -272,14 +247,13 @@ public class MainActivity extends ActionBarActivity
     /**
      * Gets the previous 10 sessions, the current streak, and the sections for the next session.
      */
-    private void getJSON() {
+    private void getSession(int index) {
 
         // Show that we are loading and hide the start button until it is loaded
         mLoadingPB.setVisibility(View.VISIBLE);
-        mStartBTN.setVisibility(View.INVISIBLE);
 
         RequestQueue queue = Volley.newRequestQueue(this);
-        String url = getString(R.string.api_url) + "?prev=1&email=" + mUserEmail;
+        String url = getString(R.string.api_url) + "?index=" + index + "&email=" + mUserEmail;
 
         // Setup the json request
         JsonObjectRequest jsObjRequest = new JsonObjectRequest
@@ -288,19 +262,10 @@ public class MainActivity extends ActionBarActivity
                     public void onResponse(JSONObject response) {
 
                         try {
-
-                            // Get the streak and the sections for the next session
-                            mStreakTV.setText(response.getString("streak"));
-                            mNextSections = response.getJSONArray("sections");
-                            mNextTitle = response.getString("title");
-
                             //Prepare the next sections for playback
-                            prepSections(mNextSections);
+                            prepSections(response.getJSONArray("sections"));
 
-                            // Setup the history list from the prev array
-                            parsePrevious(response.getJSONArray("prev"));
-
-                        } catch (JSONException | ParseException e) {
+                        } catch (JSONException e) {
                             requestError("Error");
                         }
 
@@ -327,43 +292,6 @@ public class MainActivity extends ActionBarActivity
     }
 
     /**
-     * Takes a JSONArray of objects with date_complete and index fields that represent previous
-     * meditation sessions and puts them into a list.
-     *
-     * @param prev The array to parse.
-     * @throws JSONException
-     * @throws ParseException
-     */
-    private void parsePrevious(JSONArray prev) throws JSONException, ParseException{
-
-        // Create a new adapter
-        mAdapter = new SessionAdapter(MainActivity.this, R.layout.session_row);
-
-        // Loop and add each task to the adapter
-        String title;
-        int index;
-        for (int i = 0; i < prev.length(); i++) {
-            JSONObject session = prev.getJSONObject(i);
-
-            // Get the Task properties
-            title = session.getString("title");
-            index = session.getInt("index");
-
-            // Add new TaskModel to the adapter
-            mAdapter.add(new MeditationSessionModel(title, index));
-
-        }
-
-        // Add a row to the end that has an index of -1. This will allow the user to play the
-        // next session
-        mAdapter.add(new MeditationSessionModel(null, -1));
-
-        // Set the adapter and scroll to the bottom of the list
-        mHistoryList.setAdapter(mAdapter);
-        mHistoryList.setSelection(mAdapter.getCount() - 1);
-    }
-
-    /**
      * Creates a MyMeditation session from the JSONArray and prepares the session for playback by
      * loading the audio files from the url.
      *
@@ -375,15 +303,6 @@ public class MainActivity extends ActionBarActivity
         if(jsArray.length() == 0 ) {
             requestError("No Session Found");
             return;
-        }
-
-        /**
-         * Check if we are dealing with an "Up Next" session as we can get an error where it says
-         * there is no next session but since array.length isn't 0 there is a session.
-         */
-        if (!mIsPrev) {
-            mSessionTitleTV.setText("Next Session - " + mNextTitle);
-
         }
 
         // Create a new session
@@ -399,6 +318,7 @@ public class MainActivity extends ActionBarActivity
                 );
             } catch (JSONException e) {
                 requestError("Parse Error");
+                e.printStackTrace();
                 return;
             } catch (IOException e) {
                 requestError("URL Error");
@@ -441,9 +361,9 @@ public class MainActivity extends ActionBarActivity
             mSessionBinder.getService().playSession(mMeditationSession, mIsPrev, mUserEmail);
         } else {
             // Start the service then bind to it
-            Intent i = new Intent(MainActivity.this, SessionPlaybackService.class);
+            Intent i = new Intent(SessionDetailActivity.this, SessionPlaybackService.class);
             startService(i);
-            MainActivity.this.bindService(i, PLAY_SERVICE_CONNECTION, BIND_AUTO_CREATE);
+            SessionDetailActivity.this.bindService(i, PLAY_SERVICE_CONNECTION, BIND_AUTO_CREATE);
         }
 
     }
@@ -456,7 +376,7 @@ public class MainActivity extends ActionBarActivity
         public void onServiceConnected(ComponentName name, IBinder service) {
             mServiceConnection = this;
             mSessionBinder = (SessionPlaybackService.SessionBinder) service;
-            mSessionBinder.getService().setActivity(MainActivity.this);
+            mSessionBinder.getService().setActivity(SessionDetailActivity.this);
             mSessionBinder.getService().playSession(mMeditationSession, mIsPrev, mUserEmail);
         }
 
@@ -469,30 +389,26 @@ public class MainActivity extends ActionBarActivity
 
     /**
      * Called by the playback service when playback is done.
-     * @param prev Was the session a new session or a replay
      */
-    public void meditationDone(boolean prev) {
+    public void meditationPreDone() {
 
         // Set the UI
         setUIForState(STATUS_NOT_PREP);
 
-        // If it was a replay we just need to set the text correctly
-        if(prev) {
-            mSessionTitleTV.setText("Select Session");
-            return;
-        }
+    }
 
-        // If it was a new one we are going to need to fetch a new session
-        mLoadingPB.setVisibility(View.VISIBLE);
+    /**
+     * Called by the playback service when playback is done.
+     * @param prev Was the session a new session or a replay
+     */
+    public void meditationDone(boolean prev, String title, String streak) {
 
-        /* We need to add the completed session to the list */
-        // Calculate the index based on the last session
-        int index = mAdapter.getItem(mAdapter.getCount() - 2).getIndex() + 1;
-
-        // Insert the new session and update the list
-        mAdapter.insert(new MeditationSessionModel(mNextTitle, index), mAdapter.getCount() -1);
-        mAdapter.notifyDataSetChanged();
-        mHistoryList.setSelection(mAdapter.getCount() - 1);
+        Intent i = new Intent();
+        i.putExtra(SessionsActivity.PREV, prev);
+        i.putExtra(SessionsActivity.STREAK, streak);
+        i.putExtra(SessionsActivity.TITLE, title);
+        setResult(RESULT_OK, i);
+        finish();
 
     }
 
@@ -505,19 +421,15 @@ public class MainActivity extends ActionBarActivity
         switch (state) {
             case STATUS_NOT_PREP:
                 // Hide the start button and control panel
-                mStartBTN.setVisibility(View.INVISIBLE);
                 mControlLayout.setVisibility(View.INVISIBLE);
                 break;
             case STATUS_PREP:
                 // Hide the loading spinner and show the start button
                 mLoadingPB.setVisibility(View.INVISIBLE);
-                mStartBTN.setVisibility(View.VISIBLE);
-                mStartBTN.setText(getString(R.string.button_start));
+                mControlLayout.setVisibility(View.VISIBLE);
+                mPlayBTN.setText(getString(R.string.button_play));
                 break;
             case STATUS_PLAYING:
-                // Show the control panel and make buttons be stop/pause
-                mStartBTN.setText(getString(R.string.button_stop));
-                mControlLayout.setVisibility(View.VISIBLE);
                 mPlayBTN.setText(getString(R.string.button_pause));
                 break;
             default:
@@ -529,48 +441,22 @@ public class MainActivity extends ActionBarActivity
     }
 
     /**
-     * Called by the service when the steak needs to be updated
-     * @param streak The new streak
+     * Gets a nice string description of the duration
+     * @param duration Number of .1 seconds
+     * @return String
      */
-    public void setStreakText(String streak) {
-        mStreakTV.setText(streak);
-    }
+    private static String getDurationString(int duration) {
 
-    /**
-     * Called by the service when the next sections arrive
-     * @param next The next session's sections
-     */
-    public void setPrepCurrSections(JSONArray next) {
-        mNextSections = next;
-        prepSections(mNextSections);
-    }
-
-    /**
-     * Called by the service when the next title is retrieved.
-     * @param title The next title
-     */
-    public void setNextTitle(String title) {
-        mNextTitle = title;
-        mSessionTitleTV.setText("Next Session - " + title);
-    }
-
-    /**
-     * Logout the user by resetting the pref and returning to the login screen
-     */
-    private void logout() {
-        // Reset the preference
-        SharedPreferences.Editor editor = PreferenceManager.getDefaultSharedPreferences(this)
-                .edit();
-        editor.putString(LoginActivity.PREF_KEY, "");
-        editor.apply();
-
-        // Return to the login screen
-        Intent i = new Intent(this, LoginActivity.class);
-        startActivity(i);
-        finish();
+        duration /= 600;
+        if (duration < 1) {
+            return "less than a minute";
+        } else if (duration == 1) {
+            return "1 minute";
+        } else {
+            return duration + " minutes";
+        }
 
     }
-
 
     /**
      * Handle clicks of UI elements
@@ -581,41 +467,17 @@ public class MainActivity extends ActionBarActivity
         // Handle based on the ID of the view
         switch (v.getId()) {
 
-            // mStartBTN
-            // Might need to prep, start, or stop
-            case R.id.bStop:
-                if(mPlayState == STATUS_NOT_PREP) {
-                    // Prepare the next session
-                    mLoadingPB.setVisibility(View.VISIBLE);
-                    v.setVisibility(View.INVISIBLE);
-                    prepSections(mNextSections);
-
-                } else if (mPlayState == STATUS_PREP) {
-                    // Play the loaded session
-                    playSections();
-                    mControlLayout.setVisibility(View.VISIBLE);
-
-                } else if (mPlayState == STATUS_PLAYING) {
-                    // Stop the playing session
-                    mPlayState = STATUS_NOT_PREP;
-                    mControlLayout.setVisibility(View.INVISIBLE);
-                    mDurationPB.setProgress(0);
-                    mStartBTN.setText("Load Session");
-
-                    // Use the service to stop playback
-                    mSessionBinder.getService().stopSession(mMeditationSession);
-
-
-                }
-                break;
-
             // mPlayBTN
             // Toggle playback of the session
             case R.id.bTogglePlay:
-                // Toggle the session's playback and set the button appropriately
-                mPlayBTN.setText(
-                        mMeditationSession.togglePlay() ?
-                                getString(R.string.button_pause) : getString(R.string.button_play ));
+                if (mPlayState == STATUS_PREP) {
+                    playSections();
+                } else {
+                    // Toggle the session's playback and set the button appropriately
+                    mPlayBTN.setText(
+                            mMeditationSession.togglePlay() ?
+                                    getString(R.string.button_pause) : getString(R.string.button_play));
+                }
                 break;
 
             default:
@@ -623,67 +485,10 @@ public class MainActivity extends ActionBarActivity
         }
     }
 
-    /**
-     * Handle clicks of items of the history list.
-     */
-    @Override
-    public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-
-        // If playing a session, return
-        if (mPlayState == STATUS_PLAYING) return;
-
-        // Get the session
-        MeditationSessionModel session = mAdapter.getItem(position);
-
-        // Check if it is the "next session" or a previous session
-        if (session.getIndex() == -1) {
-            /* Prepare the next session */
-            mIsPrev = false;
-            mSessionTitleTV.setText("Next Session - " + mNextTitle);
-            prepSections(mNextSections);
-
-        } else {
-            /* Need to get the previous session using the index */
-            mIsPrev = true;
-
-            // Set the label to be the title of the session
-            mSessionTitleTV.setText(session.getTitle());
-
-            mLoadingPB.setVisibility(View.VISIBLE);
-            mStartBTN.setVisibility(View.INVISIBLE);
-
-            // Need to get the session's sections
-            RequestQueue queue = Volley.newRequestQueue(this);
-            String url = getString(R.string.api_url) + "?index=" + session.getIndex() + "&email=" + mUserEmail;
-
-
-            JsonObjectRequest jsObjRequest = new JsonObjectRequest
-                    (Request.Method.GET, url, null, new Response.Listener<JSONObject>() {
-                        @Override
-                        public void onResponse(JSONObject response) {
-                            try {
-                                prepSections(response.getJSONArray("sections"));
-
-                            } catch (JSONException e) {
-                                requestError("Error");
-                            }
-                        }
-                    }, new Response.ErrorListener() {
-
-                        @Override
-                        public void onErrorResponse(VolleyError error) {
-                            requestError("Error");
-                        }
-                    });
-
-            queue.add(jsObjRequest);
-        }
-    }
-
     @Override
     public boolean onLongClick(View v) {
         switch (v.getId()) {
-            case R.id.bStop:
+            case R.id.bTogglePlay:
                 String[] memes = getResources().getStringArray(R.array.dank_memes);
                 Random r = new Random();
                 Integer rand = r.nextInt(memes.length);
@@ -715,43 +520,17 @@ public class MainActivity extends ActionBarActivity
     }
 
     @Override
-    public boolean onOptionsItemSelected(MenuItem item) {
-        switch (item.getItemId()) {
-            case R.id.action_refresh:
-                getJSON();
-                return true;
-            case R.id.action_logout:
-                logout();
-                return true;
-            default:
-                Log.d("Menu Item Click", "Action not implemented");
-        }
-
-        return super.onOptionsItemSelected(item);
-    }
-
-    @Override
-    public boolean onCreateOptionsMenu(Menu menu) {
-        // Inflate the menu; this adds items to the action bar if it is present.
-        getMenuInflater().inflate(R.menu.menu_main, menu);
-        return true;
-    }
-
-    @Override
     protected void onSaveInstanceState(Bundle outState) {
 
         outState.putInt("Play State", mPlayState);
         outState.putInt("Progress Max", mDurationPB.getMax());
         outState.putInt("Progress", mDurationPB.getProgress());
-        outState.putString("Streak", mStreakTV.getText().toString());
-        outState.putString("Next Title", mNextTitle);
         outState.putInt("Duration", mDuration);
         outState.putBoolean("Is Prev", mIsPrev);
-        outState.putInt("Start Vis", mStartBTN.getVisibility());
-        outState.putString("Start Text", mStartBTN.getText().toString());
         outState.putInt("Loading Vis", mLoadingPB.getVisibility());
         outState.putString("Play Text", mPlayBTN.getText().toString());
         outState.putString("Session Title", mSessionTitleTV.getText().toString());
+        outState.putString("Session Desc", mDescTV.getText().toString());
 
         /* Use a Fragment to store objects */
         FragmentManager fm = getFragmentManager();
@@ -765,14 +544,35 @@ public class MainActivity extends ActionBarActivity
 
         // Save the session, sections, and adapter
         dataFragment.setCurrentSession(mMeditationSession);
-        dataFragment.setNextSession(mNextSections);
-        dataFragment.setAdapter(mAdapter);
 
 
 
         super.onSaveInstanceState(outState);
 
     }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        switch (item.getItemId()) {
+            case android.R.id.home:
+                if (mPlayState == STATUS_PLAYING) {
+                    mSessionBinder.getService().stopSession(mMeditationSession);
+                }
+                finish();
+        }
+        return super.onOptionsItemSelected(item);
+    }
+
+    @Override
+    public void onBackPressed() {
+        if (mPlayState == STATUS_PLAYING) {
+            mSessionBinder.getService().stopSession(mMeditationSession);
+        }
+        finish();
+        super.onBackPressed();
+    }
+
+
 
     @Override
     protected void onDestroy() {

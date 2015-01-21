@@ -9,10 +9,12 @@ package com.inspiredo.tealmorning;
 class MeditationSessionModel {
     private final String mTitle;
     private final int  mIndex;
+    private final String mDesc;
 
-    public MeditationSessionModel(String title, int index) {
+    public MeditationSessionModel(String title, int index, String desc) {
         mTitle = title;
         mIndex = index;
+        mDesc = desc;
     }
 
     public String getTitle() {
@@ -22,4 +24,6 @@ class MeditationSessionModel {
     public int getIndex() {
         return mIndex;
     }
+
+    public String getDesc() { return mDesc; }
 }

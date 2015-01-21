@@ -40,7 +40,7 @@ public class SessionPlaybackService extends Service {
     }
 
     /* Activity that the service should alert about stuff */
-    private MainActivity mActivity;
+    private SessionDetailActivity mActivity;
 
     /**
      * Plays a mediation session. The session should be prepared and ready to play.
@@ -56,18 +56,19 @@ public class SessionPlaybackService extends Service {
         session.setOnMeditationDoneListener(new MyMeditation.OnMeditationDoneListener() {
             @Override
             public void onMeditationDone() {
-                if (mActivity != null) mActivity.meditationDone(prev);
 
                 if (prev) {
                     Toast.makeText(SessionPlaybackService.this, "Session Complete! Nice Work!",
                             Toast.LENGTH_LONG).show();
+                    if (mActivity != null) mActivity.meditationDone(true, null, null);
                     stopForeground(true);
                     stopSelf();
-                    return;
-                }
+                } else {
+                    if (mActivity != null) mActivity.meditationPreDone();
 
-                // Tell the backend service that we are done
-                reportSessionDone(user);
+                    // Tell the backend service that we are done
+                    reportSessionDone(user);
+                }
 
             }
         });
@@ -99,9 +100,9 @@ public class SessionPlaybackService extends Service {
 
                                 // Update the activity if it exists
                                 if (mActivity != null) {
-                                    mActivity.setNextTitle(response.getString("title"));
-                                    mActivity.setStreakText(response.getString("streak"));
-                                    mActivity.setPrepCurrSections(response.getJSONArray("next"));
+                                    mActivity.meditationDone(false,
+                                            response.getString("title"),
+                                            response.getString("streak"));
 
                                 }
 
@@ -133,7 +134,7 @@ public class SessionPlaybackService extends Service {
      * Build a notification for when the session is playing
      */
     private Notification buildNotification() {
-        Intent i = new Intent(this, MainActivity.class);
+        Intent i = new Intent(this, SessionsActivity.class);
         PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, i,
                 PendingIntent.FLAG_UPDATE_CURRENT);
         Notification.Builder builder = new Notification.Builder(this)
@@ -151,7 +152,7 @@ public class SessionPlaybackService extends Service {
         stopSelf();
     }
 
-    public void setActivity(MainActivity activity) {
+    public void setActivity(SessionDetailActivity activity) {
         mActivity = activity;
     }
 

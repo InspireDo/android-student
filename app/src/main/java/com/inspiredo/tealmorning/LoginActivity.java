@@ -81,7 +81,7 @@ public class LoginActivity extends ActionBarActivity implements View.OnClickList
         } else {
             // Existing user
             // Go to MainActivity
-            Intent i = new Intent(this, MainActivity.class);
+            Intent i = new Intent(this, SessionsActivity.class);
             startActivity(i);
             finish();
         }
@@ -133,7 +133,7 @@ public class LoginActivity extends ActionBarActivity implements View.OnClickList
                             editor.apply();
 
                             // Start the main activity
-                            Intent i = new Intent(LoginActivity.this, MainActivity.class);
+                            Intent i = new Intent(LoginActivity.this, SessionsActivity.class);
                             startActivity(i);
                             LoginActivity.this.finish();
                         }
