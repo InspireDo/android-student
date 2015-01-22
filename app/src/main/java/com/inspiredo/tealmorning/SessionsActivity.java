@@ -26,7 +26,11 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.text.DateFormat;
 import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.TimeZone;
 
 
 /**
@@ -50,6 +54,8 @@ public class SessionsActivity extends ActionBarActivity
     public static final String STREAK = "STREAK";
     public static final String LOADING = "LOADING";
     public static final String DESC = "DESC";
+    public static final String DATE = "DATE";
+
     /**
      * UI elements
      *
@@ -204,6 +210,9 @@ public class SessionsActivity extends ActionBarActivity
 
         // Loop and add each task to the adapter
         String title, desc;
+        Date date;
+        DateFormat df = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
+        df.setTimeZone(TimeZone.getTimeZone("UTC"));
         int index;
         for (int i = 0; i < prev.length(); i++) {
             JSONObject session = prev.getJSONObject(i);
@@ -212,15 +221,17 @@ public class SessionsActivity extends ActionBarActivity
             title = session.getString("title");
             index = session.getInt("index");
             desc = session.getString("description");
+            date = df.parse(session.getString("date_complete"));
+
 
             // Add new TaskModel to the adapter
-            mAdapter.add(new MeditationSessionModel(title, index,desc));
+            mAdapter.add(new MeditationSessionModel(title, index,desc, date));
 
         }
 
         // Add a row to the end that has an index of -1. This will allow the user to play the
         // next session
-        mAdapter.add(new MeditationSessionModel(null, -1, null));
+        mAdapter.add(new MeditationSessionModel(null, -1, null, null));
 
         // Set the adapter and scroll to the bottom of the list
         mHistoryList.setAdapter(mAdapter);
@@ -258,11 +269,15 @@ public class SessionsActivity extends ActionBarActivity
         String title = isPrev ? session.getTitle() : mNextTitle;
         String desc = isPrev ? session.getDesc() : mNextDesc;
 
+        DateFormat df = new SimpleDateFormat("MM/dd/yy");
+        String date = isPrev ? df.format(session.getDate()) : "";
+
         Intent i = new Intent(this, SessionDetailActivity.class);
         i.putExtra(INDEX, index);
         i.putExtra(PREV, isPrev);
         i.putExtra(TITLE, title);
         i.putExtra(DESC, desc);
+        i.putExtra(DATE, date);
 
 
         startActivityForResult(i, REQUEST_CODE);
@@ -274,7 +289,9 @@ public class SessionsActivity extends ActionBarActivity
         if (requestCode == REQUEST_CODE && resultCode == RESULT_OK) {
             if (!data.getBooleanExtra(PREV, false)) {
                 int index = mAdapter.getItem(mAdapter.getCount() - 2).getIndex() + 1;
-                MeditationSessionModel session = new MeditationSessionModel(mNextTitle, index, mNextDesc);
+
+
+                MeditationSessionModel session = new MeditationSessionModel(mNextTitle, index, mNextDesc, new Date());
                 mAdapter.insert(session, mAdapter.getCount() - 1);
                 mAdapter.notifyDataSetChanged();
                 mHistoryList.setSelection(mAdapter.getCount() - 1);

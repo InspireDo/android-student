@@ -1,5 +1,7 @@
 package com.inspiredo.tealmorning;
 
+import java.util.Date;
+
 /**
  * Models a previous meditation session.
  *
@@ -10,11 +12,13 @@ class MeditationSessionModel {
     private final String mTitle;
     private final int  mIndex;
     private final String mDesc;
+    private final Date mDate;
 
-    public MeditationSessionModel(String title, int index, String desc) {
+    public MeditationSessionModel(String title, int index, String desc, Date date) {
         mTitle = title;
         mIndex = index;
         mDesc = desc;
+        mDate = date;
     }
 
     public String getTitle() {
@@ -26,4 +30,6 @@ class MeditationSessionModel {
     }
 
     public String getDesc() { return mDesc; }
+
+    public Date getDate() { return mDate; }
 }

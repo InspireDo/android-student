@@ -58,7 +58,7 @@ public class SessionDetailActivity extends ActionBarActivity
      *
      * mControlLayout   - holds the play button, duration progress, and time left
      */
-    private TextView    mTimerTV, mSessionTitleTV, mDescTV, mDurationTV;
+    private TextView    mTimerTV, mSessionTitleTV, mDescTV, mDurationTV, mDateTV;
     private ProgressBar mLoadingPB, mDurationPB;
     private Button      mPlayBTN;
     private RelativeLayout
@@ -154,6 +154,7 @@ public class SessionDetailActivity extends ActionBarActivity
         mSessionTitleTV = (TextView)    findViewById(R.id.tvTitle);
         mDescTV         = (TextView)    findViewById(R.id.tvDescription);
         mDurationTV     = (TextView)    findViewById(R.id.tvDuration);
+        mDateTV         = (TextView)    findViewById(R.id.tvDate);
         mLoadingPB      = (ProgressBar) findViewById(R.id.pbLoading);
         mDurationPB     = (ProgressBar) findViewById(R.id.pbDuration);
         mControlLayout  = (RelativeLayout)
@@ -178,6 +179,7 @@ public class SessionDetailActivity extends ActionBarActivity
 
             mSessionTitleTV.setText(i.getStringExtra(SessionsActivity.TITLE));
             mDescTV.setText(i.getStringExtra(SessionsActivity.DESC));
+            mDateTV.setText(i.getStringExtra(SessionsActivity.DATE));
             mIsPrev = i.getBooleanExtra(SessionsActivity.PREV, true);
 
 
@@ -205,9 +207,11 @@ public class SessionDetailActivity extends ActionBarActivity
             // Restore the next title and Is Prev
             mIsPrev = savedInstanceState.getBoolean("Is Prev");
 
-            // Set the description and title
+            // Set the description and title and date
             mSessionTitleTV.setText(savedInstanceState.getString("Session Title"));
             mDescTV.setText(savedInstanceState.getString("Session Desc"));
+            mDateTV.setText(savedInstanceState.getString("Session Date"));
+            mDurationTV.setText(savedInstanceState.getString("Session Duration"));
 
             // Restore the play/pause button
             //noinspection ResourceType
@@ -531,6 +535,8 @@ public class SessionDetailActivity extends ActionBarActivity
         outState.putString("Play Text", mPlayBTN.getText().toString());
         outState.putString("Session Title", mSessionTitleTV.getText().toString());
         outState.putString("Session Desc", mDescTV.getText().toString());
+        outState.putString("Session Date", mDateTV.getText().toString());
+        outState.putString("Session Duration", mDurationTV.getText().toString());
 
         /* Use a Fragment to store objects */
         FragmentManager fm = getFragmentManager();
