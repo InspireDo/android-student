@@ -6,6 +6,7 @@ import android.content.Intent;
 import android.content.ServiceConnection;
 import android.content.SharedPreferences;
 import android.media.MediaPlayer;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.preference.PreferenceManager;
@@ -178,9 +179,18 @@ public class SessionDetailActivity extends ActionBarActivity
             Intent i = getIntent();
 
             mSessionTitleTV.setText(i.getStringExtra(SessionsActivity.TITLE));
-            mDescTV.setText(i.getStringExtra(SessionsActivity.DESC));
             mDateTV.setText(i.getStringExtra(SessionsActivity.DATE));
             mIsPrev = i.getBooleanExtra(SessionsActivity.PREV, true);
+
+            String desc = i.getStringExtra(SessionsActivity.DESC);
+            int index = desc.indexOf("<vid>");
+
+            if (index != -1) {
+                String url = desc.substring(index + "<vid>".length());
+                desc = desc.substring(0, index);
+                startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)));
+            }
+            mDescTV.setText(desc);
 
 
             getSession(i.getIntExtra(SessionsActivity.INDEX, -1)); // Make a call to the server
