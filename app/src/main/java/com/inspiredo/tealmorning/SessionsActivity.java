@@ -356,5 +356,4 @@ public class SessionsActivity extends ActionBarActivity
         super.onSaveInstanceState(outState);
 
     }
-
 }
