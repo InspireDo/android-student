@@ -8,7 +8,7 @@
     <string name="button_play">Play</string>
     <string name="button_pause">Pause</string>
     <string name="label_login">inspireDo</string>
-    <string name="label_login_instruction">Enter you email below</string>
+    <string name="label_login_instruction">Enter your email below</string>
     <string name="button_login">Login</string>
 
     <string-array name="dank_memes">
