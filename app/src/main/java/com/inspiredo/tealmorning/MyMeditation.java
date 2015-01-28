@@ -39,6 +39,8 @@ public class MyMeditation {
                         mDoneListener;
     private MeditationProgressListener
                         mProgressListener;
+    private OnMeditationReadyListener
+                        mReadyListener;
 
     // Handler
     private final Handler     mHandler;
@@ -99,6 +101,7 @@ public class MyMeditation {
 
     // Once all sections have been added, call this to fetch the clips and prepare for playback
     public void prepare(final OnMeditationReadyListener listener) {
+        mReadyListener = listener;
 
         // Iterate through the sections preparing each for playback
         mCurrentSection = mHeadSection;
@@ -121,7 +124,8 @@ public class MyMeditation {
                         Log.d("Meditation Prep", "Duration: " + mDuration);
 
                         // Report to the listener
-                        listener.onMeditationReady();
+                        mReadyListener.onMeditationReady();
+                        Log.d("Med REady", "YO");
 
                         // Report to the progress listener about how long the session is
                         if (mProgressListener != null)
@@ -145,6 +149,11 @@ public class MyMeditation {
     // Set the listener that should be notified of section loading progress and ticks.
     public void setProgressListener(MeditationProgressListener progressListener) {
         this.mProgressListener = progressListener;
+    }
+
+    // Set the listener that should be notified when ready to play
+    public void setReadyListener(OnMeditationReadyListener readyListener) {
+        this.mReadyListener = readyListener;
     }
 
     // Once the sections are prepared call this to play them

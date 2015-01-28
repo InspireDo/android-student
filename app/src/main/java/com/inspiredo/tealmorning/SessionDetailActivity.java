@@ -99,6 +99,18 @@ public class SessionDetailActivity extends ActionBarActivity
     };
 
     /**
+     * Implementation for how to handle meditation ready.
+     */
+    public final MyMeditation.OnMeditationReadyListener
+            READY_LISTENER = new MyMeditation.OnMeditationReadyListener() {
+        @Override
+        public void onMeditationReady() {
+            // Set the UI correctly to start playing
+            setUIForState(STATUS_PREP);
+        }
+    };
+
+    /**
      * Holds the current session the might be playing or will be played
      */
     private MyMeditation mMeditationSession;
@@ -206,6 +218,13 @@ public class SessionDetailActivity extends ActionBarActivity
                 // Get the session, next sections, and adapter
                 mMeditationSession = dataFragment.getCurrentSession();
 
+                if (mMeditationSession != null) {
+                    mMeditationSession.setReadyListener(READY_LISTENER);
+                    mMeditationSession.setProgressListener(PROGRESS_LISTENER);
+                } else {
+                    getSession(getIntent().getIntExtra(SessionsActivity.INDEX, -1)); // Make a call to the server
+                }
+
             }
 
             // Set the duration and duration progress bar
@@ -249,6 +268,8 @@ public class SessionDetailActivity extends ActionBarActivity
                 };
                 Intent i = new Intent(SessionDetailActivity.this, SessionPlaybackService.class);
                 SessionDetailActivity.this.bindService(i, reconnect, BIND_AUTO_CREATE);
+            } else if (mPlayState == STATUS_PREP) {
+                mControlLayout.setVisibility(View.VISIBLE); // Show the controls
             } else {
                 mControlLayout.setVisibility(View.INVISIBLE); // Hide the controls
             }
@@ -346,13 +367,7 @@ public class SessionDetailActivity extends ActionBarActivity
         mMeditationSession.setProgressListener(PROGRESS_LISTENER);
 
         // Prepare the session for playback
-        mMeditationSession.prepare(new MyMeditation.OnMeditationReadyListener() {
-            @Override
-            public void onMeditationReady() {
-                // Set the UI correctly to start playing
-                setUIForState(STATUS_PREP);
-            }
-        });
+        mMeditationSession.prepare(READY_LISTENER);
 
     }
 
