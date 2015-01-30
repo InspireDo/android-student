@@ -1,4 +1,4 @@
-package com.inspiredo.tealmorning;
+package com.inspiredo.inspiredo;
 
 
 import android.app.Fragment;

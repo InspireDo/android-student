@@ -1,4 +1,4 @@
-package com.inspiredo.tealmorning;
+package com.inspiredo.inspiredo;
 
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -20,6 +20,7 @@ import com.android.volley.Response;
 import com.android.volley.VolleyError;
 import com.android.volley.toolbox.JsonObjectRequest;
 import com.android.volley.toolbox.Volley;
+import com.inspiredo.tealmorning.R;
 
 import org.json.JSONException;
 import org.json.JSONObject;

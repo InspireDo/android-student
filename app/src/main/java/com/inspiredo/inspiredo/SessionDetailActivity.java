@@ -1,4 +1,4 @@
-package com.inspiredo.tealmorning;
+package com.inspiredo.inspiredo;
 
 import android.app.FragmentManager;
 import android.content.ComponentName;
@@ -25,6 +25,7 @@ import com.android.volley.Response;
 import com.android.volley.VolleyError;
 import com.android.volley.toolbox.JsonObjectRequest;
 import com.android.volley.toolbox.Volley;
+import com.inspiredo.tealmorning.R;
 
 import org.json.JSONArray;
 import org.json.JSONException;

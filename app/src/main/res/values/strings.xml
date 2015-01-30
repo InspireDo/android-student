@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <string name="app_name">Teal Morning</string>
+    <string name="app_name">inspireDo</string>
     <string name="action_settings">Settings</string>
     <string name="api_url">https://script.google.com/macros/s/AKfycbyzd0aar042aq0r0YsO6wTaKOwUr0AMSRsr-eOlQh6ZHW5Fl0Q/exec</string>
     <string name="button_stop">Stop</string>
