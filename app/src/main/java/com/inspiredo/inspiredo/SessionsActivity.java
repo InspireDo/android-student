@@ -21,7 +21,6 @@ import com.android.volley.Response;
 import com.android.volley.VolleyError;
 import com.android.volley.toolbox.JsonObjectRequest;
 import com.android.volley.toolbox.Volley;
-import com.inspiredo.inspiredo.R;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -165,7 +164,14 @@ public class SessionsActivity extends ActionBarActivity
                             // Get the streak and the sections for the next session
                             mStreakTV.setText(response.getString("streak"));
                             mNextTitle = response.getString("title");
-                            mNextDesc = response.getString("description");
+
+                            String vid = response.getString("video");
+                            if (vid.length() != 0) {
+                                mNextDesc = response.getString("description") + "<vid>" + vid;
+                            }   else {
+                                    mNextDesc = response.getString("description");
+                            }
+
 
                             // Setup the history list from the prev array
                             parsePrevious(response.getJSONArray("prev"));
@@ -221,12 +227,20 @@ public class SessionsActivity extends ActionBarActivity
             // Get the Task properties
             title = session.getString("title");
             index = session.getInt("index");
-            desc = session.getString("description");
             date = df.parse(session.getString("date_complete"));
+
+            String vid = session.getString("video");
+
+            if (vid.length() != 0) {
+                desc = session.getString("description") + "<vid>" + vid;
+            } else {
+                desc = session.getString("description");
+            }
+
 
 
             // Add new TaskModel to the adapter
-            mAdapter.add(new MeditationSessionModel(title, index,desc, date));
+            mAdapter.add(new MeditationSessionModel(title, index, desc, date));
 
         }
 

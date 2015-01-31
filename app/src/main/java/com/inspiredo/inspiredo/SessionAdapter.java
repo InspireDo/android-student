@@ -7,8 +7,6 @@ import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
 import android.widget.TextView;
 
-import com.inspiredo.inspiredo.R;
-
 /**
  * Adapter for History of sessions
  *
