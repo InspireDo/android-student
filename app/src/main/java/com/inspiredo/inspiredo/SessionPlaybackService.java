@@ -25,7 +25,7 @@ import org.json.JSONObject;
  * Created by Erik Kessler
  * (c) 2015 inspireDo
  */
-public class SessionPlaybackService extends Service {
+public class  SessionPlaybackService extends Service {
 
     /* Binder that is used when an activity binds to this */
     private final IBinder mBinder = new SessionBinder();
